@@ -1,0 +1,8 @@
+{
+  "name": "neter-soul",
+  "version": "1.0.0",
+  "description": "Soul · Neter — Plataforma terapêutica",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}
