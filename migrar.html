@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Migração · Soul Neter</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#0b1a14;color:#f0ece0;min-height:100vh;
+  display:flex;align-items:center;justify-content:center;padding:20px}
+.box{background:#122a1c;border:1px solid rgba(196,165,90,.2);border-radius:18px;
+  padding:28px;max-width:480px;width:100%}
+h1{font-size:1.3rem;font-weight:700;margin-bottom:6px}
+.sub{font-size:13px;color:rgba(240,236,224,.5);margin-bottom:20px;line-height:1.6}
+.btn{width:100%;background:#c4a55a;color:#1a2a14;border:none;border-radius:10px;
+  padding:14px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;display:block}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-sec{background:rgba(255,255,255,.07);color:rgba(240,236,224,.7);
+  border:1px solid rgba(196,165,90,.2)}
+#scanBox{background:rgba(255,255,255,.05);border-radius:10px;padding:14px;
+  margin-bottom:16px;font-size:13px;color:rgba(240,236,224,.55);min-height:48px}
+.log{background:rgba(0,0,0,.3);border-radius:10px;padding:14px;margin-top:14px;
+  font-size:12px;line-height:1.9;max-height:280px;overflow-y:auto;display:none}
+.ok{color:#6ab87a}.err{color:#e08080}.info{color:#c4a55a}.skip{color:rgba(240,236,224,.3)}
+.summary{background:rgba(196,165,90,.1);border:1px solid rgba(196,165,90,.25);
+  border-radius:10px;padding:14px;margin-top:12px;font-size:13px;line-height:1.7;display:none}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>🌿 Migração de Usuários</h1>
+  <p class="sub">Lê os usuários deste dispositivo e envia ao servidor para salvar no Supabase com permissão total.</p>
+
+  <div id="scanBox">Clique em "Escanear" para ver os usuários locais.</div>
+
+  <button class="btn" onclick="scan()">🔍 Escanear usuários locais</button>
+  <button class="btn btn-sec" id="btnMig" onclick="migrate()" disabled>⬆️ Migrar para Supabase</button>
+
+  <div class="log" id="log"></div>
+  <div class="summary" id="summary"></div>
+</div>
+
+<script>
+var USERS = [];
+
+function log(msg, cls){
+  var l = document.getElementById('log');
+  l.style.display = 'block';
+  var d = document.createElement('div');
+  d.className = cls||'info';
+  d.textContent = msg;
+  l.appendChild(d);
+  l.scrollTop = l.scrollHeight;
+}
+
+function scan(){
+  USERS = [];
+  try {
+    var raw = localStorage.getItem('sn5_users');
+    if (!raw){ document.getElementById('scanBox').textContent='⚠️ Nenhum usuário encontrado.'; return; }
+    var db = JSON.parse(raw);
+    var keys = Object.keys(db);
+    if (!keys.length){ document.getElementById('scanBox').textContent='⚠️ Banco local vazio.'; return; }
+    USERS = keys.map(function(k){ return db[k]; });
+    document.getElementById('scanBox').innerHTML =
+      '<strong style="color:#c4a55a">'+USERS.length+' usuário(s) encontrado(s):</strong><br>'+
+      USERS.map(function(u){
+        return '• '+(u.name||'?')+(u.email?' &lt;'+u.email+'&gt;':'')+' · '+(u.credits||0)+' créditos';
+      }).join('<br>');
+    document.getElementById('btnMig').disabled = false;
+  } catch(e){
+    document.getElementById('scanBox').textContent = 'Erro: '+e.message;
+  }
+}
+
+async function migrate(){
+  if (!USERS.length){ alert('Escaneie primeiro.'); return; }
+  document.getElementById('btnMig').disabled = true;
+  document.getElementById('log').style.display = 'block';
+  log('Enviando '+USERS.length+' usuário(s) ao servidor...','info');
+
+  try {
+    var res = await fetch('/.netlify/functions/migrate-users', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(USERS)
+    });
+    if (!res.ok){ log('Erro HTTP: '+res.status,'err'); document.getElementById('btnMig').disabled=false; return; }
+    var results = await res.json();
+
+    var ok=0,skip=0,fail=0;
+    results.forEach(function(r){
+      if(r.status==='ok'){   log('✅ '+r.name+' — '+r.credits+' créditos','ok'); ok++; }
+      else if(r.status==='skip'){ log('⏭️ '+r.name+' — '+r.reason,'skip'); skip++; }
+      else{                  log('❌ '+r.name+' — '+r.reason,'err'); fail++; }
+    });
+
+    var sum = document.getElementById('summary');
+    sum.style.display = 'block';
+    sum.innerHTML = '✅ <strong>'+ok+'</strong> migrado(s) &nbsp;·&nbsp; ⏭️ <strong>'+skip+'</strong> ignorado(s) &nbsp;·&nbsp; ❌ <strong>'+fail+'</strong> com erro'
+      +(ok>0?'<br><br>Acesse o <a href="admin.html" style="color:#c4a55a">painel admin</a> para confirmar.':'');
+  } catch(e){
+    log('Erro de conexão: '+e.message,'err');
+  }
+  document.getElementById('btnMig').disabled = false;
+}
+</script>
+</body>
+</html>

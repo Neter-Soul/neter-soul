@@ -1,0 +1,47 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+
+[[redirects]]
+  from = "/api/chat"
+  to = "/.netlify/functions/chat"
+  status = 200
+
+[[redirects]]
+  from = "/api/transcribe"
+  to = "/.netlify/functions/transcribe"
+  status = 200
+
+[[redirects]]
+  from = "/api/transcribe-chunk"
+  to = "/.netlify/functions/transcribe-chunk"
+  status = 200
+
+[[redirects]]
+  from = "/api/migrate-users"
+  to = "/.netlify/functions/migrate-users"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin-data"
+  to = "/.netlify/functions/admin-data"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
