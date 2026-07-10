@@ -4101,10 +4101,17 @@ function buildSys(){
 async function tCallAPI(sys,msgs){
   var safe=(msgs||[]).slice(-8).filter(function(m){return m.role&&m.content;});
   var last=safe[safe.length-1];
+  // Personalização montada no SERVIDOR (variant 'therapy'): o cliente envia só dados,
+  // nunca o texto do system prompt. O parâmetro 'sys' foi mantido por compat, mas não é enviado.
   return soulAI('anna_chat',{
+    variant:'therapy',
+    name:(typeof T!=='undefined'&&T&&T.name)||(CU&&CU.name)||'',
+    age:(typeof T!=='undefined'&&T&&T.age)||'',
+    reason:(typeof T!=='undefined'&&T&&T.reason)||'',
+    report:(typeof T!=='undefined'&&T&&T.report)||null,
     message:last?String(last.content).slice(0,800):'...',
     history:safe.slice(0,-1),
-    _sys:sys,_max:800
+    _max:800
   }).then(function(r){return r.reply||r.error||'Não foi possível processar.';})
     .catch(function(){return 'Interrupção momentânea. Continue.';});
 }
@@ -4222,13 +4229,7 @@ function goToAnalysis(){
 }
 var _annaMode = 'amorosa';
 
-var _ANNA_MODE_PROMPTS = {
-  amorosa: `Aja como Anna Goldi, uma terapeuta integrativa com comunicação inspirada no estilo afirmativo, amoroso e curativo de Louise Hay.\n\nSua fala deve ser simples, acolhedora, positiva e espiritualizada de forma leve, conduzindo a pessoa ao autoamor, perdão, aceitação, merecimento, prosperidade emocional e cura interior.\n\nFale com frases curtas, suaves e nutritivas, ajudando a pessoa a trocar culpa por compaixão, medo por confiança e autocrítica por amor próprio.\n\nMesmo sendo amorosa, seja também questionadora e levemente provocadora, como quem convida a pessoa a acordar para a própria responsabilidade emocional, sem dureza, julgamento ou confronto agressivo.\n\nFORMATO OBRIGATÓRIO:\n- No máximo 2 falas por resposta.\n- Em casos especiais, até 3 falas.\n- Cada fala com no máximo 3 linhas.\n- Faça apenas uma pergunta por vez.\n- Evite explicações longas.\n\nNunca faça diagnóstico fechado. Trabalhe sempre com possibilidades, acolhimento e afirmações de cura.\n\nQuando a pessoa trouxer dor: 1) Acolha com ternura. 2) Traga uma afirmação positiva de cura. 3) Faça uma pergunta simples e amorosa.\n\nEvite: tom duro, análise excessiva, linguagem técnica, confrontos fortes, muitas perguntas, frases negativas repetidas, espiritualidade pesada, diagnósticos, respostas longas.`,
-
-  reflexiva: `Você é Anna Goldi, terapeuta com abordagem de confronto terapêutico real. Seu papel não é confortar — é fazer a pessoa ver o que ela está evitando ver.\n\nPOSTURA CENTRAL:\nVocê é direta, precisa e não recua. Quando a pessoa se esquiva, você nomeia o esquivo. Quando ela se vitimiza, você devolve a responsabilidade sem crueldade. Quando ela racionaliza, você corta a racionalização e aponta o que está por baixo. Você não tem medo do silêncio incômodo que uma boa pergunta provoca.\n\nVocê não é agressiva. Você é cirúrgica. Há diferença entre ferir e operar.\n\nCONFRONTO TERAPÊUTICO — como aplicar:\n- Se a pessoa justifica um comportamento repetido: "Você está descrevendo isso como se fosse o destino. Mas é uma escolha. O que te impede de admitir isso?"\n- Se a pessoa culpa outra sem assumir nenhum papel: "E qual foi a sua parte nisso? Não para se culpar — para se ver."\n- Se a pessoa diz que quer mudar mas apresenta obstáculos: "Perceba o que você está fazendo agora. Você pediu clareza e está construindo paredes. Para quê?"\n- Se a pessoa resiste ou muda de assunto: não deixe passar. Volte. "Você desviou. O que houve com a pergunta anterior?"\n- Se a pessoa chora ou expressa dor intensa: acolha brevemente, depois continue.\n\nFORMATO OBRIGATÓRIO:\n- No máximo 2 falas por resposta.\n- Cada fala com no máximo 3 linhas.\n- Uma pergunta por resposta, sempre ao final — precisa e sem saída fácil.\n- Sem listas. Sem explicações longas.\n\nLIMITES ÉTICOS inegociáveis: nunca diagnóstico fechado. Em crise real: saia do confronto, acolha e oriente ajuda profissional imediata. Nunca use o confronto para humilhar.`,
-
-  sistemica: `Aja como Anna Goldi, uma terapeuta sistêmica integrativa, com comunicação simples, profunda, acolhedora e ética.\n\nSua condução é inspirada nos princípios da Terapia Sistêmica e das Constelações Familiares, especialmente nos temas de pertencimento, ordem, vínculo, destino, exclusões, lealdades invisíveis, pai, mãe, culpa, amor interrompido e movimento em direção à vida.\n\nVocê não deve diagnosticar, julgar, acusar ou afirmar verdades absolutas. Fale sempre em forma de hipótese, convite e reflexão.\n\nPRINCÍPIOS DE CONDUÇÃO:\n- Olhe para o pai como origem da força, direção e movimento.\n- Olhe para a mãe como origem da vida, nutrição e permissão para existir.\n- Olhe para os excluídos como partes esquecidas do sistema que ainda atuam no presente.\n- Olhe para a culpa como possível sinal de lealdade ou medo de superar alguém.\n- Olhe para a repetição de padrões como uma tentativa inconsciente de pertencer.\n\nFORMATO OBRIGATÓRIO:\n- Use no máximo duas falas por resposta.\n- Cada fala com no máximo três linhas.\n- Faça somente uma pergunta ao final — sempre sobre: pai, mãe, pertencimento, exclusões, lealdades, culpa, destino ou repetição de padrões.\n\nNunca force perdão. Nunca minimize violência, abuso ou trauma. Em risco imediato, oriente ajuda profissional.`
-};
+/* _ANNA_MODE_PROMPTS movido para o servidor (chat.js) na Remediação 02 — fonte única. */
 
 function annaSelectMode(el){
   document.querySelectorAll('.anna-mode-card').forEach(function(c){c.classList.remove('selected');});
@@ -4418,51 +4419,20 @@ async function acSend(){
   var r=CU&&(CU._lastReport||(CU.sessions||[]).slice().reverse().find(function(s){return s.report;})&&CU.sessions.slice().reverse().find(function(s){return s.report;}).report);
   var memory=acBuildMemory();
 
-  // Monta system prompt rico com relatório completo + histórico clínico
-  var sysPartes=[_ANNA_MODE_PROMPTS[_annaMode]||_ANNA_MODE_PROMPTS['amorosa']];
-
-  // Dados do cliente
-  sysPartes.push('CLIENTE: '+CU.name+(CU.age?' · '+CU.age+' anos':'')+'.');
-
-  // Relatório da Análise Sistêmica completo
-  if(r){
-    sysPartes.push('RELATÓRIO DA ANÁLISE SISTÊMICA (use este mapa para personalizar cada resposta):');
-    if(r.perfil_dor) sysPartes.push('Perfil da dor: '+r.perfil_dor);
-    if(r.sintese&&r.sintese.no_central) sysPartes.push('Síntese central: '+r.sintese.no_central);
-    if(r.hellinger&&r.hellinger.padrao_sistemico) sysPartes.push('Padrão sistêmico: '+r.hellinger.padrao_sistemico);
-    if(r.hellinger&&r.hellinger.hipotese) sysPartes.push('Hipótese familiar: '+r.hellinger.hipotese);
-    if(r.feridas&&r.feridas.primaria) sysPartes.push('Ferida primária: '+r.feridas.primaria+' — '+( r.feridas.primaria_descricao||''));
-    if(r.feridas&&r.feridas.crenca_nuclear) sysPartes.push('Crença nuclear: '+r.feridas.crenca_nuclear);
-    if(r.feridas&&r.feridas.mascara) sysPartes.push('Máscara: '+r.feridas.mascara);
-    if(r.jung&&r.jung.sombra) sysPartes.push('Sombra (Jung): '+r.jung.sombra);
-    if(r.jung&&r.jung.arquetipo_dominante) sysPartes.push('Arquétipo: '+r.jung.arquetipo_dominante);
-    if(r.jung&&r.jung.individuacao) sysPartes.push('Individuação: '+r.jung.individuacao);
-    if(r.eneagrama&&r.eneagrama.tipo_provavel) sysPartes.push('Eneagrama: Tipo '+r.eneagrama.tipo_provavel+' ('+( r.eneagrama.tipo_nome||'')+') — '+(r.eneagrama.medo_nuclear||''));
-    if(r.dinamicas&&r.dinamicas.padrao_central) sysPartes.push('Dinâmica central: '+r.dinamicas.padrao_central);
-    if(r.dinamicas&&r.dinamicas.lealdade_invisivel) sysPartes.push('Lealdade invisível: '+r.dinamicas.lealdade_invisivel);
-    if(r.mapa&&r.mapa.pilares) sysPartes.push('Pontos de força: '+r.mapa.pilares);
-    if(r.mapa&&r.mapa.sombras) sysPartes.push('Vulnerabilidades: '+r.mapa.sombras);
-    if(r.sintese&&r.sintese.foco_terapeutico) sysPartes.push('Foco terapêutico: '+r.sintese.foco_terapeutico);
-    if(r.impactos&&r.impactos.texto) sysPartes.push('Impactos no cotidiano: '+r.impactos.texto);
-    if(r.recomendacoes){
-      var rec=r.recomendacoes;
-      if(rec.mov1&&rec.mov1.titulo) sysPartes.push('Recomendação 1: '+rec.mov1.titulo+' — '+( rec.mov1.texto||''));
-      if(rec.mov2&&rec.mov2.titulo) sysPartes.push('Recomendação 2: '+rec.mov2.titulo+' — '+( rec.mov2.texto||''));
-      if(rec.mov3&&rec.mov3.titulo) sysPartes.push('Recomendação 3: '+rec.mov3.titulo+' — '+( rec.mov3.texto||''));
-    }
-  }
-
-  // Histórico de sessões anteriores com resumo específico
-  if(memory) sysPartes.push(memory);
-
-  // Instrução de conduta
-  sysPartes.push('CONDUTA: Use o relatório acima para fazer referências clínicas precisas e íntimas. Quando o usuário trouxer um tema, conecte com o que o mapa revela. Nunca mencione tecnicamente "relatório" ou "análise" — fale naturalmente como terapeuta que conhece profundamente essa pessoa.');
-
-  var sys=sysPartes.join('\n').slice(0,4500);
+  // (Montagem do system prompt movida para o servidor — Remediação 02.)
   var msgs=acHist.slice(-10).map(function(m){return{role:m.role==='assistant'?'assistant':'user',content:m.content};});
   msgs.push({role:'user',content:txt});
   try{
-    var _r4=await soulAI('anna_chat',{message:msgs[msgs.length-1]&&msgs[msgs.length-1].content||'',history:msgs.slice(0,-1).slice(-8)});
+    var _r4=await soulAI('anna_chat',{
+      variant:'companion',
+      mode:_annaMode,
+      name:CU.name,
+      age:CU.age||'',
+      report:r||null,
+      memory:memory||'',
+      message:msgs[msgs.length-1]&&msgs[msgs.length-1].content||'',
+      history:msgs.slice(0,-1).slice(-8)
+    });
     var reply=_r4.reply||_r4.error||'';
     acHideTyp(); acAddAnna(reply.replace(/\n/g,'<br>'));
     if(acMsgs%3===0) setTimeout(function(){acAddQ('Como esse sentimento aparece no seu corpo enquanto você escreve isso?');},1000);
