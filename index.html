@@ -1663,7 +1663,7 @@ img{max-width:100%}
       <div class="svc" onclick="abrirAnalise()">
         <div style="display:flex;align-items:flex-start;gap:11px">
           <div class="svc-icon dk"><i class="ti ti-topology-star-3" aria-hidden="true" style="font-size:1.2rem;color:#c4a55a"></i></div>
-          <div><div class="svc-title">Análise Sistêmica <span class="analise-lock" style="display:none;font-size:10px;color:#c4a55a;font-weight:700">🔒 Premium</span></div><div class="svc-desc">Conheça seus padrões emocionais profundos.</div></div>
+          <div><div class="svc-title">Análise Sistêmica <span class="analise-lock" style="display:none;font-size:10px;color:#c4a55a;font-weight:700">🔒 Plano</span></div><div class="svc-desc">Conheça seus padrões emocionais profundos.</div></div>
         </div>
         <div class="svc-arrow"><i class="ti ti-arrow-right" aria-hidden="true"></i></div>
       </div>
@@ -2202,14 +2202,14 @@ img{max-width:100%}
             <div class="anna-mode-card" data-mode="reflexiva" onclick="annaSelectMode(this)">
               <div class="anna-mode-ico">🔥</div>
               <div class="anna-mode-body">
-                <div class="anna-mode-title">Reflexiva e Provocativa <span class="voz-lock" data-lockvoice="reflexiva" style="display:none;font-size:10px;color:#c4a55a;font-weight:700;margin-left:4px">🔒 Premium</span></div>
+                <div class="anna-mode-title">Reflexiva e Provocativa <span class="voz-lock" data-lockvoice="reflexiva" style="display:none;font-size:10px;color:#c4a55a;font-weight:700;margin-left:4px">🔒 Plano</span></div>
                 <div class="anna-mode-desc">Confronto terapêutico real. Para quando você quer se ver com honestidade.</div>
               </div>
             </div>
             <div class="anna-mode-card" data-mode="sistemica" onclick="annaSelectMode(this)">
               <div class="anna-mode-ico">🌀</div>
               <div class="anna-mode-body">
-                <div class="anna-mode-title">Sistêmica e Holística <span class="voz-lock" data-lockvoice="sistemica" style="display:none;font-size:10px;color:#c4a55a;font-weight:700;margin-left:4px">🔒 Premium</span></div>
+                <div class="anna-mode-title">Sistêmica e Holística <span class="voz-lock" data-lockvoice="sistemica" style="display:none;font-size:10px;color:#c4a55a;font-weight:700;margin-left:4px">🔒 Plano</span></div>
                 <div class="anna-mode-desc">Visão do campo familiar. Para quando a dor parece maior do que você.</div>
               </div>
             </div>
@@ -3596,10 +3596,14 @@ function renderHome() {
   var ov = g('cardAnalisaInicial');
   var sb = g('svcBlock');
   var done = CU.hasCompletedInitialSystemicAnalysis !== false;
-  if(ov) ov.style.display = done ? 'none' : 'block';
+  var _pagoAn = (typeof ehPago==='function') ? ehPago() : true;
+  // O card "Comece pela Análise" é um convite ao primeiro passo — mas a
+  // Análise é recurso pago. Então só faz sentido mostrá-lo para quem TEM
+  // plano pago e ainda não fez. Para o Free, o card nunca aparece (evita
+  // convidar para algo que está bloqueado). O svcBlock fica sempre visível.
+  if(ov) ov.style.display = (!done && _pagoAn) ? 'block' : 'none';
   if(sb) sb.style.display = 'block'; // sempre visível
   // Fase 2: cadeado na Análise Sistêmica quando o usuário é free
-  var _pagoAn = (typeof ehPago==='function') ? ehPago() : true;
   document.querySelectorAll('.analise-lock').forEach(function(el){ el.style.display = _pagoAn ? 'none' : 'inline'; });
 }
 
