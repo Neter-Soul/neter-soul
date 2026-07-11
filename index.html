@@ -3793,6 +3793,19 @@ function anNext(){
 }
 function anPrev(){anSave();if(anCur>0){anCur--;anRender();}}
 
+function anRestart(){
+  // Usada quando o servidor recusa gerar a análise por falta de conteúdo
+  // real nas respostas (Rem-05). Zera o rascunho e volta pro questionário
+  // do zero — nenhum crédito foi gasto, então não há nada a "devolver".
+  anAns=new Array(10).fill('');
+  anCur=0;
+  dbS('an_draft',null);
+  var rep=g('anReport'); if(rep) rep.style.display='none';
+  var qa=g('anQArea'); if(qa) qa.style.display='';
+  var st=g('anSteps'); if(st) st.style.display='';
+  anRender();
+}
+
 function anDownloadPDF(){
   if(!CU||!CU._lastReport){toast('Gere a an\u00e1lise primeiro.');return;}
   var r=CU._lastReport;
@@ -4375,7 +4388,7 @@ function renderAnalysisReportHTML(report){
   var r=report;
   var out=
     '<div class="an-report-title">Mapa de Navega\u00e7\u00e3o Ps\u00edquica</div>'+
-    '<div class="an-report-sub">S\u00edntese cl\u00ednica integrativa com base nas suas 20 respostas.</div>'+
+    '<div class="an-report-sub">S\u00edntese cl\u00ednica integrativa com base nas suas 10 respostas.</div>'+
     '<div class="an-rcard featured" style="margin-bottom:6px">'+
       '<div class="an-rcard-tag" style="background:rgba(196,165,90,.15);color:#c4a55a;border:1px solid rgba(196,165,90,.3)">\u2726 Retrato da Paisagem Interna</div>'+
       '<div class="an-rcard-text" style="font-size:13.5px;line-height:1.85;font-style:italic">'+((r.retrato&&r.retrato.paisagem_interna)||r.sintese.no_central)+'</div>'+
@@ -4465,7 +4478,25 @@ async function anShowReport(){
     if(_tid)clearTimeout(_tid);
     if(_res.ok){
       var _d=await _res.json();
-      if(_d&&_d.result&&typeof _d.result==='object'&&_d.result.hellinger) report=_d.result;
+      if(_d&&_d.result&&typeof _d.result==='object'){
+        // Rem-05: o servidor recusa deliberadamente gerar uma análise quando
+        // as respostas não têm conteúdo real (letras aleatórias, vazio,
+        // teste). Isso é diferente de falha técnica — aqui a resposta veio
+        // certinho, só que o conteúdo dela é "não dá pra analisar isso".
+        // Precisa de uma tela própria: nem o relatório real, nem o fallback
+        // genérico (que pareceria uma leitura de verdade sem ser).
+        if(_d.result.insufficient_data){
+          if(rep) rep.innerHTML=
+            '<div style="padding:24px 20px">'+
+            '<div class="an-report-title" style="color:#a8883e">N\u00e3o conseguimos gerar sua an\u00e1lise</div>'+
+            '<p style="color:#5a6a52;font-size:14px;margin:14px 0;line-height:1.7">As respostas fornecidas n\u00e3o trouxeram conte\u00fado suficiente para uma leitura real. Isso n\u00e3o \u00e9 um erro t\u00e9cnico \u2014 \u00e9 o sistema reconhecendo que precisa de mais de voc\u00ea pra devolver algo verdadeiro, em vez de inventar uma an\u00e1lise gen\u00e9rica.</p>'+
+            '<p style="color:#5a6a52;font-size:14px;margin:14px 0;line-height:1.7">Nenhum cr\u00e9dito foi descontado desta tentativa. Volte e responda com um pouco mais de profundidade \u2014 mesmo poucas frases sinceras j\u00e1 s\u00e3o suficientes.</p>'+
+            '<button class="btn-gold" onclick="anRestart()" style="margin-top:8px">Refazer a An\u00e1lise \u2192</button>'+
+            '</div>';
+          return;
+        }
+        if(_d.result.hellinger) report=_d.result;
+      }
     }
   }catch(e){console.warn('API:',e.message);}
 

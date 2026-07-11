@@ -304,6 +304,7 @@ function buildTherapySystem(body){
 const ANALYSIS_SYSTEM = `Atue como um terapeuta sistêmico e analítico sênior. Sua única tarefa é analisar de forma profunda e integrativa o formulário do paciente.
 
 REGRAS ABSOLUTAS:
+0. ANTES DE QUALQUER COISA: avalie se as 10 respostas contêm relato real e coerente sobre a pessoa — mesmo que curto, cru, mal escrito ou incompleto, desde que seja uma tentativa genuína de responder. Se as respostas forem majoritariamente vazias, aleatórias, sem nexo (sequências de teclado tipo "asdasd", testes, repetição sem conteúdo real, texto copiado sem relação com a pergunta), NÃO invente uma análise a partir disso. Nesse caso, responda SOMENTE com o JSON {"insufficient_data":true} — nenhum outro campo, nenhuma tentativa de "salvar" a resposta com uma leitura genérica. Isso vale mesmo que só 1 ou 2 das 10 respostas sejam problemáticas mas as demais sejam reais: nesse caso, prossiga normalmente e use apenas o que é real.
 1. PROIBIDO resumir ou encurtar qualquer campo. Respostas curtas serão rejeitadas.
 2. Cada campo de texto deve ter MÍNIMO 3 frases completas. Campos "paragrafo/paisagem" devem ter MÍNIMO 5 frases.
 3. Sintetize padrões macro — NÃO analise pergunta por pergunta.
@@ -372,6 +373,18 @@ async function handleSystemicAnalysis(body) {
   const answersRaw = body.answers;
   if (!answersRaw) return { error: 'Respostas não fornecidas.' };
 
+  // Filtro determinístico rápido — pega os casos mais óbvios (vazio, quase
+  // vazio, ou a mesma resposta copiada em todas as perguntas) sem gastar
+  // uma chamada de IA. Casos mais sutis (ex.: letras aleatórias diferentes
+  // em cada campo) ficam a cargo da Regra 0 do ANALYSIS_SYSTEM.
+  const answersArr = Array.isArray(answersRaw) ? answersRaw : Object.values(answersRaw || {});
+  const nonEmpty = answersArr.map(a => String(a || '').trim()).filter(Boolean);
+  const totalChars = nonEmpty.join('').length;
+  const uniqueLower = new Set(nonEmpty.map(a => a.toLowerCase()));
+  if (nonEmpty.length < 3 || totalChars < 40 || (nonEmpty.length >= 4 && uniqueLower.size === 1)) {
+    return { result: { insufficient_data: true }, type: 'systemic_analysis' };
+  }
+
   const answersStr = JSON.stringify(answersRaw).slice(0, MAX_ANSWERS_LEN);
   const prompt = `Analise as seguintes respostas de uma avaliação terapêutica e gere o relatório JSON conforme instruído:\n\n${answersStr}`;
 
@@ -397,6 +410,13 @@ async function handleSystemicAnalysis(body) {
     } else {
       return { error: 'Não foi possível processar a análise. Tente novamente.' };
     }
+  }
+
+  // Regra 0 pode disparar mesmo depois do filtro determinístico (ex.: texto
+  // com caracteres suficientes mas sem nexo nenhum). Propaga o sinal como
+  // veio, sem tentar completar campos que a IA deixou de fora de propósito.
+  if (result && result.insufficient_data) {
+    return { result: { insufficient_data: true }, type: 'systemic_analysis' };
   }
 
   return { result, type: 'systemic_analysis' };
