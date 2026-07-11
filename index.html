@@ -3351,7 +3351,11 @@ function ql(n,p){ /* Fase 1: quick-login por senha removido — acesso é via Ma
 var _magicEmail = '';
 var _magicTimer = null;
 
-function _emailValido(e){ return e && e.indexOf('@')>0 && e.indexOf('.')>e.indexOf('@'); }
+function _emailValido(e){
+  // Valida formato: algo@dominio.tld — sem exigir posição do primeiro ponto
+  // (a versão anterior quebrava com pontos antes do @, ex.: nome.sobrenome@).
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((e||'').trim());
+}
 
 function _magicRedirectURL(){
   // Volta pra própria página; onAuthStateChange captura a sessão no retorno.
