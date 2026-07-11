@@ -1596,7 +1596,7 @@ img{max-width:100%}
       <span class="nav-link on">Início</span>
       <span class="nav-link" onclick="pg('pgTherapists')">Terapeutas</span>
       <span class="nav-link" onclick="pg('pgAnna')">Anna Goldi</span>
-      <span class="nav-link" onclick="pg('pgAnalysis')">Análise</span>
+      <span class="nav-link" onclick="abrirAnalise()">Análise</span>
     </div>
     <div class="user-pill" onclick="doLogout()">
       <div class="user-av" id="hAv">S</div>
@@ -1645,7 +1645,7 @@ img{max-width:100%}
       </div>
       <div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:900;color:#f4f0e8;margin-bottom:10px;line-height:1.25">Comece pela sua<br>Análise Sistêmica</div>
       <p style="font-size:12px;color:rgba(244,240,232,.7);font-weight:300;line-height:1.75;margin-bottom:20px">Antes de iniciar sua jornada com a Anna Goldi, responda algumas perguntas para que possamos compreender sua história emocional e personalizar sua experiência.</p>
-      <button onclick="pg('pgAnalysis')" style="background:#c4a55a;color:#fff;border:none;border-radius:10px;padding:13px 20px;font-size:13px;font-weight:700;cursor:pointer;width:100%;font-family:'DM Sans',sans-serif;transition:background .2s;box-shadow:0 4px 16px rgba(196,165,90,.3)" onmouseover="this.style.background='#a8883e'" onmouseout="this.style.background='#c4a55a'">Responder minha Análise Sistêmica <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+      <button onclick="abrirAnalise()" style="background:#c4a55a;color:#fff;border:none;border-radius:10px;padding:13px 20px;font-size:13px;font-weight:700;cursor:pointer;width:100%;font-family:'DM Sans',sans-serif;transition:background .2s;box-shadow:0 4px 16px rgba(196,165,90,.3)" onmouseover="this.style.background='#a8883e'" onmouseout="this.style.background='#c4a55a'">Responder minha Análise Sistêmica <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
       <p style="font-size:10px;color:rgba(244,240,232,.4);text-align:center;margin-top:10px;font-weight:300">Leva cerca de 5 minutos · Feito uma única vez</p>
     </div>
   </div>
@@ -1660,10 +1660,10 @@ img{max-width:100%}
         </div>
         <div class="svc-arrow"><i class="ti ti-arrow-right" aria-hidden="true"></i></div>
       </div>
-      <div class="svc" onclick="pg('pgAnalysis')">
+      <div class="svc" onclick="abrirAnalise()">
         <div style="display:flex;align-items:flex-start;gap:11px">
           <div class="svc-icon dk"><i class="ti ti-topology-star-3" aria-hidden="true" style="font-size:1.2rem;color:#c4a55a"></i></div>
-          <div><div class="svc-title">Análise Sistêmica</div><div class="svc-desc">Conheça seus padrões emocionais profundos.</div></div>
+          <div><div class="svc-title">Análise Sistêmica <span class="analise-lock" style="display:none;font-size:10px;color:#c4a55a;font-weight:700">🔒 Premium</span></div><div class="svc-desc">Conheça seus padrões emocionais profundos.</div></div>
         </div>
         <div class="svc-arrow"><i class="ti ti-arrow-right" aria-hidden="true"></i></div>
       </div>
@@ -2125,7 +2125,7 @@ img{max-width:100%}
     <div class="nav-links">
       <span class="nav-link" onclick="pg('pgHome')">Início</span>
       <span class="nav-link on">Anna Goldi</span>
-      <span class="nav-link" onclick="pg('pgAnalysis')">Análise</span>
+      <span class="nav-link" onclick="abrirAnalise()">Análise</span>
     </div>
     <div class="user-pill" onclick="doLogout()"><div class="user-av" id="aaAv">S</div><span class="user-name" id="aaName">—</span></div>
   </nav>
@@ -2294,7 +2294,7 @@ img{max-width:100%}
     </div>
     <div class="ac-topbar-r">
       <button class="ac-btn" onclick="pg('pgWip')" title="Em breve"><i class="ti ti-microphone" aria-hidden="true" style="font-size:13px"></i>Modo voz</button>
-      <button class="ac-btn" onclick="pg('pgAnalysis')"><i class="ti ti-topology-star-3" aria-hidden="true" style="font-size:13px"></i>Ver análise</button>
+      <button class="ac-btn" onclick="abrirAnalise()"><i class="ti ti-topology-star-3" aria-hidden="true" style="font-size:13px"></i>Ver análise</button>
       <button class="ac-btn end" onclick="endAnnaChat()"><i class="ti ti-door-exit" aria-hidden="true" style="font-size:13px"></i>Encerrar sessão</button>
     </div>
   </div>
@@ -2349,7 +2349,7 @@ img{max-width:100%}
       </div>
       <div class="ac-actions">
         <div class="ac-action" onclick="toast('Sessão salva no histórico! ✓')"><i class="ti ti-device-floppy" aria-hidden="true" style="font-size:13px;color:#8a9a82"></i><span class="ac-action-text">Salvar no histórico</span></div>
-        <div class="ac-action" onclick="pg('pgAnalysis')"><i class="ti ti-topology-star-3" aria-hidden="true" style="font-size:13px;color:#8a9a82"></i><span class="ac-action-text">Abrir análise sistêmica</span></div>
+        <div class="ac-action" onclick="abrirAnalise()"><i class="ti ti-topology-star-3" aria-hidden="true" style="font-size:13px;color:#8a9a82"></i><span class="ac-action-text">Abrir análise sistêmica</span></div>
         <div class="ac-action red" onclick="endAnnaChat()"><i class="ti ti-door-exit" aria-hidden="true" style="font-size:13px;color:#c07070"></i><span class="ac-action-text">Encerrar sessão</span></div>
       </div>
     </div>
@@ -3588,14 +3588,19 @@ function renderHome() {
   // Card completar cadastro
   var card = g('completeCadCard');
   if(card) card.style.display = CU.profileComplete ? 'none' : 'flex';
-  // Overlay análise inicial
-  // Card análise inicial e svcBlock — mutuamente exclusivos
-  // undefined = conta criada antes do campo existir → mostrar botões diretamente
+  // Card de Análise inicial: agora é apenas um CONVITE, não um gate.
+  // Os botões de navegação (svcBlock) ficam SEMPRE visíveis — o usuário
+  // nunca fica preso na Home sem poder fazer nada. O card só é exibido
+  // como sugest\u00e3o para quem ainda n\u00e3o fez a an\u00e1lise, e sempre junto
+  // dos bot\u00f5es, n\u00e3o no lugar deles.
   var ov = g('cardAnalisaInicial');
   var sb = g('svcBlock');
   var done = CU.hasCompletedInitialSystemicAnalysis !== false;
   if(ov) ov.style.display = done ? 'none' : 'block';
-  if(sb) sb.style.display = done ? 'block' : 'none';
+  if(sb) sb.style.display = 'block'; // sempre visível
+  // Fase 2: cadeado na Análise Sistêmica quando o usuário é free
+  var _pagoAn = (typeof ehPago==='function') ? ehPago() : true;
+  document.querySelectorAll('.analise-lock').forEach(function(el){ el.style.display = _pagoAn ? 'none' : 'inline'; });
 }
 
 function markInitialAnalysisDone() {
@@ -3606,6 +3611,16 @@ function markInitialAnalysisDone() {
   if(ov) ov.style.display = 'none';
   var sb = g('svcBlock');
   if(sb) sb.style.display = 'block';
+}
+
+function abrirAnalise(){
+  // Fase 2: Análise Sistêmica é recurso pago. O Free vê o banner de upgrade
+  // ANTES de responder as 10 perguntas (não depois), evitando trabalho à toa.
+  if(typeof ehPago==='function' && !ehPago()){
+    if(typeof mostrarBannerUpgrade==='function') mostrarBannerUpgrade('feature_locked');
+    return;
+  }
+  pg('pgAnalysis');
 }
 
 function openFullReg() {
