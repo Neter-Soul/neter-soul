@@ -1473,14 +1473,26 @@ img{max-width:100%}
     </div>
     <div class="lx-modal-body">
       <div id="loginView">
-        <div class="lx-modal-err" id="loginErr">Nome ou senha incorretos.</div>
-        <div class="ln-field"><i class="ti ti-user ln-field-ico" aria-hidden="true"></i><input class="ln-inp" id="lnName" type="text" placeholder="Seu nome" onkeydown="if(event.key==='Enter')doLogin()" style="padding:11px 12px 11px 32px;font-size:13px"></div>
-        <div class="ln-field" style="margin-top:9px"><i class="ti ti-lock ln-field-ico" aria-hidden="true"></i><input class="ln-inp" id="lnPass" type="password" placeholder="Palavra-chave" onkeydown="if(event.key==='Enter')doLogin()" style="padding:11px 12px 11px 32px;font-size:13px"></div>
-        <button class="btn-forest" style="width:100%;margin-top:14px;justify-content:center;padding:12px" onclick="doLogin()">Acessar Minha Jornada</button>
+        <div class="lx-modal-err" id="loginErr">Não foi possível enviar o link. Verifique o e-mail e tente novamente.</div>
+        <p style="font-size:13px;color:#5a6a52;line-height:1.7;margin:0 0 14px">Digite seu e-mail e enviaremos um link seguro de acesso. Sem senha para lembrar.</p>
+        <div class="ln-field"><i class="ti ti-mail ln-field-ico" aria-hidden="true"></i><input class="ln-inp" id="lnEmail" type="email" autocomplete="email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter')doMagicLogin()" style="padding:11px 12px 11px 32px;font-size:13px"></div>
+        <button class="btn-forest" id="lnMagicBtn" style="width:100%;margin-top:14px;justify-content:center;padding:12px" onclick="doMagicLogin()">Enviar link de acesso</button>
         <div class="lx-modal-patients" id="lnPatients" style="margin-top:16px"></div>
         <div style="text-align:center;margin-top:14px;padding-top:14px;border-top:1px solid rgba(196,165,90,.15)">
           <span style="font-size:12px;color:#8a9a82">Ainda não tem conta? </span>
           <span style="font-size:12px;color:#c4a55a;font-weight:600;cursor:pointer;text-decoration:underline" onclick="showRegView()">Criar agora</span>
+        </div>
+      </div>
+      <!-- MAGIC LINK — AGUARDANDO CONFIRMAÇÃO -->
+      <div id="magicSentView" style="display:none;text-align:center">
+        <div style="font-size:2.6rem;margin-bottom:10px">📬</div>
+        <div class="lx-modal-title" style="margin-bottom:8px">Verifique seu e-mail</div>
+        <p style="font-size:13px;color:#5a6a52;line-height:1.7;margin:0 0 6px">Enviamos um link de acesso para</p>
+        <p style="font-size:14px;font-weight:700;color:#1e3528;margin:0 0 16px" id="magicSentEmail">—</p>
+        <p style="font-size:12px;color:#8a9a82;line-height:1.7;margin:0 0 16px">Abra o e-mail e toque no link para entrar. Ele expira em alguns minutos. Confira a caixa de spam se não aparecer.</p>
+        <button class="btn-forest" id="magicResendBtn" style="width:100%;justify-content:center;padding:11px" onclick="doMagicResend()" disabled>Reenviar em <span id="magicCountdown">30</span>s</button>
+        <div style="text-align:center;margin-top:12px">
+          <span style="font-size:12px;color:#c4a55a;font-weight:600;cursor:pointer;text-decoration:underline" onclick="showLoginView()">← Usar outro e-mail</span>
         </div>
       </div>
       <div id="registerView" style="display:none">
@@ -1488,14 +1500,12 @@ img{max-width:100%}
         <div class="ln-field"><i class="ti ti-user ln-field-ico" aria-hidden="true"></i><input class="ln-inp" id="rgName" type="text" placeholder="Nome completo" style="padding:11px 12px 11px 32px;font-size:13px"></div>
         <div class="ln-field" style="margin-top:9px"><i class="ti ti-mail ln-field-ico" aria-hidden="true"></i><input class="ln-inp" id="rgEmail" type="email" placeholder="E-mail" style="padding:11px 12px 11px 32px;font-size:13px"></div>
         <div class="ln-field" style="margin-top:9px"><i class="ti ti-brand-whatsapp ln-field-ico" aria-hidden="true"></i><input class="ln-inp" id="rgWhats" type="tel" placeholder="WhatsApp (com DDD)" style="padding:11px 12px 11px 32px;font-size:13px"></div>
-        <div class="ln-field" style="margin-top:9px"><i class="ti ti-lock ln-field-ico" aria-hidden="true"></i><input class="ln-inp" id="rgPass" type="password" placeholder="Crie uma senha" style="padding:11px 12px 11px 32px;font-size:13px"></div>
-        <div class="ln-field" style="margin-top:9px"><i class="ti ti-lock-check ln-field-ico" aria-hidden="true"></i><input class="ln-inp" id="rgPass2" type="password" placeholder="Confirme a senha" style="padding:11px 12px 11px 32px;font-size:13px"></div>
         <div class="ln-tos">
           <div class="ln-tos-item"><input type="checkbox" id="chkTermos"><label for="chkTermos">Li e aceito os <a href="#" onclick="return false">Termos de Uso</a></label></div>
           <div class="ln-tos-item"><input type="checkbox" id="chkLgpd"><label for="chkLgpd">Li e aceito a <a href="#" onclick="return false">Política de Privacidade / LGPD</a></label></div>
           <div class="ln-tos-item"><input type="checkbox" id="chkAnna"><label for="chkAnna">Entendo que a Anna Goldi, assistente de IA da Neter Soul, não substitui o atendimento humano realizado por médicos, psicoterapeutas ou psiquiatras.</label></div>
         </div>
-        <button class="btn-forest" style="width:100%;margin-top:16px;justify-content:center;padding:12px" onclick="doRegister()">Criar Conta e Começar</button>
+        <button class="btn-forest" style="width:100%;margin-top:16px;justify-content:center;padding:12px" onclick="doRegister()">Criar Conta e Receber Link</button>
         <div style="text-align:center;margin-top:12px">
           <span style="font-size:12px;color:#c4a55a;font-weight:600;cursor:pointer;text-decoration:underline" onclick="showLoginView()">← Já tenho conta</span>
         </div>
@@ -3158,15 +3168,18 @@ function saveIntention(){
   pg(_loginDest || 'pgHome');
 }
 function showLoginView(){
-  var lv=g('loginView'), rv=g('registerView'), iv=g('intentionView');
+  var lv=g('loginView'), rv=g('registerView'), iv=g('intentionView'), mv=g('magicSentView');
   if(iv) iv.style.display='none';
+  if(mv) mv.style.display='none';
+  if(_magicTimer){ clearInterval(_magicTimer); _magicTimer=null; }
   if(lv) lv.style.display='block';
   if(rv) rv.style.display='none';
   renderPatients();
 }
 function showRegView(){
-  var lv=g('loginView'), rv=g('registerView'), iv=g('intentionView');
+  var lv=g('loginView'), rv=g('registerView'), iv=g('intentionView'), mv=g('magicSentView');
   if(iv) iv.style.display='none';
+  if(mv) mv.style.display='none';
   if(lv) lv.style.display='none';
   if(rv) rv.style.display='block';
 }
@@ -3329,100 +3342,174 @@ function renderPatients() {
   var el = g('lnPatients'); if (el) el.innerHTML = '';
 }
 
-function ql(n,p){
-  g('lnName').value=n;
-  g('lnPass').value=p;
-  doLogin();
+function ql(n,p){ /* Fase 1: quick-login por senha removido — acesso é via Magic Link */ }
+
+// ═══ FASE 1 — Magic Link / Supabase Auth ═══════════════════════════
+// Substitui o login por nome+senha (comparado no localStorage, bypassável
+// pelo console) por autenticação real via link mágico. Com a sessão real,
+// auth.uid() deixa de ser null e o RLS pode ser religado (Fase 1b).
+var _magicEmail = '';
+var _magicTimer = null;
+
+function _emailValido(e){ return e && e.indexOf('@')>0 && e.indexOf('.')>e.indexOf('@'); }
+
+function _magicRedirectURL(){
+  // Volta pra própria página; onAuthStateChange captura a sessão no retorno.
+  return window.location.origin + window.location.pathname;
 }
 
-function doLogin() {
-  var n = g('lnName').value.trim();
-  var p = g('lnPass').value.trim();
+async function doMagicLogin(){
+  var e = (g('lnEmail').value||'').trim().toLowerCase();
   var err = g('loginErr');
-  var u = getUser(n);
-  if (!u || u.pass !== p) {
-    if(err){ err.style.display='block'; setTimeout(function(){err.style.display='none';},3000); }
-    return;
+  var btn = g('lnMagicBtn');
+  function showErr(msg){ if(err){ err.textContent=msg; err.style.display='block'; setTimeout(function(){err.style.display='none';},4000);} }
+  if(!_emailValido(e)){ showErr('Digite um e-mail válido.'); return; }
+  if(!window.sb){ showErr('Serviço de acesso indisponível no momento.'); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Enviando...'; }
+  try{
+    var res = await window.sb.auth.signInWithOtp({
+      email: e,
+      options: { emailRedirectTo: _magicRedirectURL() }
+    });
+    if(res.error){ showErr(res.error.message||'Não foi possível enviar o link.'); return; }
+    _magicEmail = e;
+    _showMagicSentView(e);
+  }catch(ex){
+    showErr(ex.message||'Falha ao enviar o link.');
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='Enviar link de acesso'; }
   }
-  CU = u;
-  closeLoginModal();
-  // Sincroniza plano e análise sistêmica com Supabase antes de navegar
-  // (Rem-04: sem o sync da análise, o gate e a tela de resultado dependiam
-  // só do localStorage local — se o relatório existisse apenas no banco
-  // (outro aparelho, cache limpo), o app agia como se ele nunca tivesse
-  // sido feito. Falha aqui nunca deve travar o login.)
-  Promise.all([
-    syncPlanStatus(),
-    (typeof syncSystemicAnalysisFromServer==='function' ? syncSystemicAnalysisFromServer() : Promise.resolve())
-  ]).then(function() { pg(_loginDest || 'pgHome'); })
-    .catch(function(){ pg(_loginDest || 'pgHome'); });
-  // sync credits from Supabase after login
-  setTimeout(function(){ if(window.SoulDB) window.SoulDB.refreshUIBalance(); }, 800);
 }
 
-function doRegister() {
+function _showMagicSentView(email){
+  ['loginView','registerView','intentionView'].forEach(function(id){var el=g(id);if(el)el.style.display='none';});
+  var mv=g('magicSentView'); if(mv) mv.style.display='block';
+  var em=g('magicSentEmail'); if(em) em.textContent=email;
+  _startResendCountdown();
+}
+
+function _startResendCountdown(){
+  var secs=30;
+  var btn=g('magicResendBtn'), cd=g('magicCountdown');
+  if(btn){ btn.disabled=true; }
+  if(cd) cd.textContent=secs;
+  if(_magicTimer) clearInterval(_magicTimer);
+  _magicTimer=setInterval(function(){
+    secs--;
+    if(cd) cd.textContent=secs;
+    if(secs<=0){
+      clearInterval(_magicTimer); _magicTimer=null;
+      if(btn){ btn.disabled=false; btn.textContent='Reenviar link'; }
+    }
+  },1000);
+}
+
+async function doMagicResend(){
+  if(!_magicEmail) return;
+  var btn=g('magicResendBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Reenviando...'; }
+  try{
+    await window.sb.auth.signInWithOtp({ email:_magicEmail, options:{ emailRedirectTo:_magicRedirectURL() } });
+    toast('Link reenviado para '+_magicEmail);
+  }catch(e){ toast('Não foi possível reenviar agora.'); }
+  _startResendCountdown();
+}
+
+// Handler central: chamado quando o Supabase confirma uma sessão (retorno do
+// link) ou quando já existe sessão salva ao abrir o app. Resolve/cria o perfil
+// e migra automaticamente contas antigas (por e-mail) para a auth real.
+async function onMagicSession(session){
+  if(!session || !session.user) return;
+  var authId = session.user.id;
+  var email = (session.user.email||'').toLowerCase();
+  try{
+    // 1) Perfil já vinculado a esta auth?
+    var byAuth = await window.sb.from('profiles').select('*').eq('auth_user_id', authId).limit(1).maybeSingle();
+    var prof = (!byAuth.error && byAuth.data) ? byAuth.data : null;
+
+    // 2) Não vinculado ainda: procura perfil antigo por e-mail e faz o link.
+    if(!prof && email){
+      var byEmail = await window.sb.from('profiles').select('*').eq('email', email).limit(1).maybeSingle();
+      if(!byEmail.error && byEmail.data){
+        prof = byEmail.data;
+        var upd = await window.sb.from('profiles').update({ auth_user_id: authId }).eq('id', prof.id).select('*').maybeSingle();
+        if(!upd.error && upd.data) prof = upd.data;
+      }
+    }
+
+    // 3) Nenhum perfil: cria um novo já vinculado.
+    if(!prof && email){
+      var nome = (session.user.user_metadata && session.user.user_metadata.name) || email.split('@')[0];
+      var ins = await window.sb.from('profiles').insert({ name:nome, email:email, role:'client', auth_user_id:authId }).select('*').maybeSingle();
+      if(!ins.error && ins.data) prof = ins.data;
+    }
+
+    if(!prof){ console.warn('[onMagicSession] perfil não resolvido'); return; }
+
+    // Monta o CU (agora cache da sessão real, não fonte da verdade).
+    var localMatch = getUser(prof.name) || {};
+    CU = Object.assign({}, newUser(prof.name,'',''), localMatch, {
+      name: prof.name,
+      email: prof.email || email,
+      supabase_id: prof.id,
+      auth_user_id: authId
+    });
+    delete CU.pass; // senha não existe mais neste modelo
+    saveUser(prof.name, CU);
+
+    closeLoginModal();
+    Promise.all([
+      (typeof syncPlanStatus==='function'?syncPlanStatus():Promise.resolve()),
+      (typeof syncSystemicAnalysisFromServer==='function'?syncSystemicAnalysisFromServer():Promise.resolve())
+    ]).then(function(){ pg(_loginDest||'pgHome'); }).catch(function(){ pg(_loginDest||'pgHome'); });
+    setTimeout(function(){ if(window.SoulDB) window.SoulDB.refreshUIBalance(); },800);
+  }catch(e){ console.warn('[onMagicSession]', e.message); }
+}
+
+async function doRegister() {
   var n = g('rgName').value.trim();
-  var e = g('rgEmail').value.trim();
+  var e = (g('rgEmail').value||'').trim().toLowerCase();
   var w = g('rgWhats').value.trim();
-  var p = g('rgPass').value.trim();
-  var p2 = g('rgPass2').value.trim();
   var err = g('regErr');
   function showErr(msg){ err.textContent=msg; err.style.display='block'; setTimeout(function(){err.style.display='none';},3500); }
   if (!n) { showErr('Informe seu nome completo.'); return; }
-  if (!e || e.indexOf('@')<0) { showErr('Informe um e-mail válido.'); return; }
-  if (!p || p.length < 4) { showErr('A senha deve ter ao menos 4 caracteres.'); return; }
-  if (p !== p2) { showErr('As senhas não coincidem.'); return; }
+  if (!_emailValido(e)) { showErr('Informe um e-mail válido.'); return; }
   if (!g('chkTermos').checked) { showErr('Aceite os Termos de Uso para continuar.'); return; }
   if (!g('chkLgpd').checked) { showErr('Aceite a Política de Privacidade para continuar.'); return; }
   if (!g('chkAnna').checked) { showErr('É necessário confirmar o entendimento sobre a Anna Goldi.'); return; }
-  if (getUser(n)) { showErr('Esse nome já existe. Faça login ou escolha outro.'); return; }
-  CU = newUser(n,'',p);
-  CU.email = e; CU.whatsapp = w;
-  // 1) Salvar local (sempre)
-  saveUser(n, CU);
-  // 2) Salvar no Supabase (se disponível)
-  if (window.sb) {
-    (async function(){
-      try {
-        var initialCredits = (window.siteConfig && window.siteConfig.credits && window.siteConfig.credits.userInitialBalance) || 500;
-        // Inserir perfil
-        var {data: prof, error: profErr} = await window.sb
-          .from('profiles')
-          .insert({ name: n, email: e, phone: w || null, role: 'client' })
-          .select('id')
-          .single();
-        if (!profErr && prof) {
-          CU.supabase_id = prof.id;
-          saveUser(n, CU);
-          // Criar saldo inicial de créditos
-          await window.sb.from('user_credits').insert({ user_id: prof.id, balance: initialCredits });
-          // Registrar transação de boas-vindas
-          await window.sb.from('credit_transactions').insert({
-            user_id: prof.id,
-            amount: initialCredits,
-            type: 'admin_adjustment', // Rem-03: 'bonus' viola a CHECK constraint de credit_transactions.type (gerava 400 silencioso)
-            description: 'Créditos de boas-vindas Soul'
-          });
-        }
-      } catch(err) {
-        console.warn('Supabase register:', err);
-      }
-    })();
-  }
-  // Mostrar tela de intenção após cadastro
-  var lv=g('loginView'), rv=g('registerView'), iv=g('intentionView');
-  if(lv) lv.style.display='none';
-  if(rv) rv.style.display='none';
-  if(iv) iv.style.display='block';
-  var it=g('intentionText'); if(it){it.value='';setTimeout(function(){it.focus();},200);}
+  if(!window.sb){ showErr('Serviço de acesso indisponível no momento.'); return; }
+
+  // Pré-cria o perfil (idempotente por e-mail) para que dados de cadastro
+  // (nome, whatsapp) não se percam. O vínculo com auth.users acontece no
+  // retorno do link, em onMagicSession.
+  try{
+    var existing = await window.sb.from('profiles').select('id').eq('email', e).limit(1).maybeSingle();
+    if(existing.error || !existing.data){
+      await window.sb.from('profiles').insert({ name:n, email:e, phone:w||null, role:'client' });
+    }
+  }catch(ex){ console.warn('pré-cadastro perfil:', ex.message); }
+
+  // Dispara o link mágico
+  try{
+    var res = await window.sb.auth.signInWithOtp({
+      email: e,
+      options: { emailRedirectTo: _magicRedirectURL(), data:{ name:n } }
+    });
+    if(res.error){ showErr(res.error.message||'Não foi possível enviar o link.'); return; }
+    _magicEmail = e;
+    _showMagicSentView(e);
+  }catch(ex){ showErr(ex.message||'Falha ao enviar o link.'); }
 }
 
 function doLogout() {
   if (!confirm('Sair da sua conta?')) return;
   CU = null;
+  if(window.sb && window.sb.auth){ try{ window.sb.auth.signOut(); }catch(e){} }
   pg('pgLogin');
-  g('loginView').style.display = 'block';
-  g('registerView').style.display = 'none';
+  var lv=g('loginView'), rv=g('registerView'), mv=g('magicSentView');
+  if(lv) lv.style.display = 'block';
+  if(rv) rv.style.display = 'none';
+  if(mv) mv.style.display = 'none';
   renderPatients();
 }
 
@@ -5575,6 +5662,28 @@ window.onload=function(){
     if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();tSend();}
     setTimeout(function(){ti.rows=1;ti.rows=Math.min(4,Math.ceil(ti.scrollHeight/24));},0);
   });
+
+  // ═══ FASE 1 — captura de sessão do Magic Link ═══
+  // Registra o listener e checa sessão já existente. Quando o usuário volta
+  // do link no e-mail, o supabase-js detecta o token na URL, cria a sessão e
+  // dispara SIGNED_IN → onMagicSession resolve o perfil e entra no app.
+  (function initAuthListener(){
+    if(!window.sb || !window.sb.auth){
+      // supabaseClient ainda não carregou — tenta de novo em breve
+      return setTimeout(initAuthListener, 300);
+    }
+    try{
+      window.sb.auth.onAuthStateChange(function(event, session){
+        if((event==='SIGNED_IN' || event==='INITIAL_SESSION') && session){
+          if(!CU) onMagicSession(session);
+        }
+      });
+      // Sessão persistida (usuário já tinha logado antes): entra direto.
+      window.sb.auth.getSession().then(function(res){
+        if(res && res.data && res.data.session && !CU){ onMagicSession(res.data.session); }
+      });
+    }catch(e){ console.warn('[initAuthListener]', e.message); }
+  })();
 };
 
 // ═══════════════════════════════════════
