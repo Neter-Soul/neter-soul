@@ -2202,14 +2202,14 @@ img{max-width:100%}
             <div class="anna-mode-card" data-mode="reflexiva" onclick="annaSelectMode(this)">
               <div class="anna-mode-ico">🔥</div>
               <div class="anna-mode-body">
-                <div class="anna-mode-title">Reflexiva e Provocativa</div>
+                <div class="anna-mode-title">Reflexiva e Provocativa <span class="voz-lock" data-lockvoice="reflexiva" style="display:none;font-size:10px;color:#c4a55a;font-weight:700;margin-left:4px">🔒 Premium</span></div>
                 <div class="anna-mode-desc">Confronto terapêutico real. Para quando você quer se ver com honestidade.</div>
               </div>
             </div>
             <div class="anna-mode-card" data-mode="sistemica" onclick="annaSelectMode(this)">
               <div class="anna-mode-ico">🌀</div>
               <div class="anna-mode-body">
-                <div class="anna-mode-title">Sistêmica e Holística</div>
+                <div class="anna-mode-title">Sistêmica e Holística <span class="voz-lock" data-lockvoice="sistemica" style="display:none;font-size:10px;color:#c4a55a;font-weight:700;margin-left:4px">🔒 Premium</span></div>
                 <div class="anna-mode-desc">Visão do campo familiar. Para quando a dor parece maior do que você.</div>
               </div>
             </div>
@@ -3081,24 +3081,70 @@ var SOUL_AI_ENDPOINT = '/.netlify/functions/chat';
 // Wrapper unificado para chamar a IA (serverless ou direto para testes locais)
 async function soulAI(type, payload){
   var body = Object.assign({type:type}, payload);
+  var headers = {'Content-Type':'application/json'};
+  // Fase 2: envia o JWT da sessão para o servidor validar o plano.
+  try{
+    if(window.sb && window.sb.auth){
+      var s = await window.sb.auth.getSession();
+      var tok = s && s.data && s.data.session && s.data.session.access_token;
+      if(tok) headers['Authorization'] = 'Bearer ' + tok;
+    }
+  }catch(e){}
   try{
     var res = await fetch(SOUL_AI_ENDPOINT, {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers: headers,
       body: JSON.stringify(body)
     });
-    if(!res.ok){
-      var err = await res.json().catch(function(){return {};});
-      return {error: err.error || 'Serviço indisponível ('+res.status+')'};
+    var data = await res.json().catch(function(){return {};});
+    // Fase 2: 402 = bloqueio de plano. Mostra banner de upgrade.
+    if(res.status === 402 || (data && data.upgrade)){
+      if(typeof mostrarBannerUpgrade==='function') mostrarBannerUpgrade(data.reason, data.error);
+      return {error: data.error || 'Recurso disponível nos planos pagos.', upgrade:true, reason:data.reason};
     }
-    return await res.json();
+    if(!res.ok){
+      return {error: (data && data.error) || 'Serviço indisponível ('+res.status+')'};
+    }
+    return data;
   }catch(e){
     return {error: 'Sem conexão com o serviço de IA.'};
   }
 }
 
 
-// ═══ PONTE COM siteConfig (config central editável) ═══
+// ═══ FASE 2 — Banner de upgrade (convite delicado, não bloqueia a navegação) ═══
+function mostrarBannerUpgrade(reason, msg){
+  var textos = {
+    voice_locked: 'Esta voz da Anna faz parte dos planos Jornada e Premium.',
+    daily_limit: 'Você usou seus 15 minutos diários com a Anna. Renova amanhã — ou libere acesso ilimitado.',
+    feature_locked: 'Este recurso está disponível nos planos Jornada e Premium.'
+  };
+  var txt = msg || textos[reason] || 'Torne-se membro para liberar este recurso.';
+  var old = g('upgradeBanner'); if(old) old.remove();
+  var b = document.createElement('div');
+  b.id = 'upgradeBanner';
+  b.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9999;max-width:92%;width:420px;background:linear-gradient(135deg,#1e3528,#2d5a3d);color:#f4f0e8;border:1px solid rgba(196,165,90,.4);border-radius:16px;padding:16px 18px;box-shadow:0 10px 40px rgba(0,0,0,.3);display:flex;align-items:center;gap:14px;animation:upFadeIn .3s ease';
+  b.innerHTML =
+    '<div style="flex:1">'+
+      '<div style="font-family:\'Fraunces\',serif;font-weight:700;font-size:14px;margin-bottom:3px;color:#c4a55a">\u2728 Torne-se membro</div>'+
+      '<div style="font-size:12.5px;line-height:1.5;color:rgba(244,240,232,.9)">'+txt+'</div>'+
+    '</div>'+
+    '<button onclick="pg(\'pgPlanos\');var e=document.getElementById(\'upgradeBanner\');if(e)e.remove();" style="background:#c4a55a;color:#1e3528;border:none;border-radius:10px;padding:9px 14px;font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap">Ver planos</button>'+
+    '<button onclick="var e=document.getElementById(\'upgradeBanner\');if(e)e.remove();" aria-label="Fechar" style="background:none;border:none;color:rgba(244,240,232,.5);font-size:18px;cursor:pointer;padding:0 2px">\u00d7</button>';
+  document.body.appendChild(b);
+  setTimeout(function(){ var e=g('upgradeBanner'); if(e) e.remove(); }, 12000);
+}
+if(!document.getElementById('_upStyle')){
+  var _st=document.createElement('style'); _st.id='_upStyle';
+  _st.textContent='@keyframes upFadeIn{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}';
+  document.head.appendChild(_st);
+}
+
+// Helpers de plano no cliente (a checagem REAL é no servidor; isto é só UX)
+function planoAtual(){ return (CU && (CU.plan||CU.supabase_plan_name)) || 'free'; }
+function ehPago(){ var p=planoAtual(); return p==='jornada'||p==='premium'; }
+
+
 // Lê valores de window.siteConfig quando existir; senão usa o padrão.
 window.CFG = window.siteConfig || {};
 window.cfg = function(path, fallback){
@@ -3214,9 +3260,7 @@ var _PAYWALL_FREE = ['pgLogin','pgPlanos','pgCheckout','pgConfirmacao'];
 function isPlanoAtivo() {
   if (window._paywallBypass) return true;
   if (!CU) return false;
-  // Verifica campo plan_status no perfil Supabase (sincronizado em CU.supabase_plan)
   if (CU.supabase_plan === 'active') return true;
-  // Fallback: voucher gratuito ativado localmente
   if (CU.plan_status === 'active') return true;
   return false;
 }
@@ -3226,12 +3270,10 @@ function _pgOriginal(id) { _pgReal(id); }
 var _pgReal;
 
 function pg(id) {
-  // Paywall: bloqueia tudo exceto páginas livres
-  if (_PAYWALL_FREE.indexOf(id) === -1 && !isPlanoAtivo()) {
-    // Mostra a tela de planos com mensagem
-    _showPaywallMsg();
-    id = 'pgPlanos';
-  }
+  // Fase 2: o app inteiro é navegável, inclusive no plano Free — o bloqueio
+  // não é mais por página (que jogava o Free direto no checkout), e sim por
+  // AÇÃO: cada recurso pago dispara mostrarBannerUpgrade() e é validado no
+  // servidor. Portanto, aqui não há mais redirecionamento forçado a pgPlanos.
   var ids=['pgLogin','pgHome','pgAnalysis','pgEmotion','pgTherapy','pgAnna','pgAnnaChat','pgTherapists','pgLoja','pgProsa','pgCredits','pgComprar','pgPlanos','pgCheckout','pgConfirmacao'];
   for(var i=0;i<ids.length;i++){
     var el=document.getElementById(ids[i]);
@@ -3375,11 +3417,11 @@ async function doMagicLogin(){
       email: e,
       options: { emailRedirectTo: _magicRedirectURL() }
     });
-    if(res.error){ showErr(res.error.message||'Não foi possível enviar o link.'); return; }
+    if(res.error){ var _m=(res.error&&(res.error.message||res.error.msg||res.error.error_description)); if(!_m||typeof _m!=='string')_m='Não foi possível enviar o link agora. Tente novamente em instantes.'; showErr(_m); return; }
     _magicEmail = e;
     _showMagicSentView(e);
   }catch(ex){
-    showErr(ex.message||'Falha ao enviar o link.');
+    showErr((ex&&ex.message)||'Falha ao enviar o link.');
   }finally{
     if(btn){ btn.disabled=false; btn.textContent='Enviar link de acesso'; }
   }
@@ -3452,11 +3494,20 @@ async function onMagicSession(session){
 
     // Monta o CU (agora cache da sessão real, não fonte da verdade).
     var localMatch = getUser(prof.name) || {};
+    // Fase 2: plano vale só se ativo e não expirado; senão free.
+    var _planoOk = (prof.plan_status||'active')==='active' &&
+                   (!prof.plan_expires_at || new Date(prof.plan_expires_at) > new Date());
+    var _plano = (_planoOk ? (prof.plan||'free') : 'free').toLowerCase();
+    if(['free','jornada','premium'].indexOf(_plano)===-1) _plano='free';
     CU = Object.assign({}, newUser(prof.name,'',''), localMatch, {
       name: prof.name,
       email: prof.email || email,
       supabase_id: prof.id,
-      auth_user_id: authId
+      auth_user_id: authId,
+      plan: _plano,
+      supabase_plan_name: _plano,
+      supabase_plan: _planoOk ? 'active' : 'inactive',
+      plan_status: _planoOk ? 'active' : 'inactive'
     });
     delete CU.pass; // senha não existe mais neste modelo
     saveUser(prof.name, CU);
@@ -3499,10 +3550,10 @@ async function doRegister() {
       email: e,
       options: { emailRedirectTo: _magicRedirectURL(), data:{ name:n } }
     });
-    if(res.error){ showErr(res.error.message||'Não foi possível enviar o link.'); return; }
+    if(res.error){ var _m=(res.error&&(res.error.message||res.error.msg||res.error.error_description)); if(!_m||typeof _m!=='string')_m='Não foi possível enviar o link agora. Tente novamente em instantes.'; showErr(_m); return; }
     _magicEmail = e;
     _showMagicSentView(e);
-  }catch(ex){ showErr(ex.message||'Falha ao enviar o link.'); }
+  }catch(ex){ showErr((ex&&ex.message)||'Falha ao enviar o link.'); }
 }
 
 function doLogout() {
@@ -4553,13 +4604,29 @@ async function anShowReport(){
   try{
     var _ac=typeof AbortController!=='undefined'?new AbortController():null;
     var _tid=_ac?setTimeout(function(){_ac.abort();},28000):null;
+    // Fase 2: envia JWT para o servidor validar o plano (Análise é recurso pago)
+    var _hdrs={'Content-Type':'application/json'};
+    try{ if(window.sb&&window.sb.auth){ var _s=await window.sb.auth.getSession(); var _tk=_s&&_s.data&&_s.data.session&&_s.data.session.access_token; if(_tk)_hdrs['Authorization']='Bearer '+_tk; } }catch(e){}
     var _res=await fetch('/.netlify/functions/chat',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:_hdrs,
       body:JSON.stringify({type:'systemic_analysis',answers:answersPayload,user:{name:CU?CU.name:'Paciente'}}),
       signal:_ac?_ac.signal:undefined
     });
     if(_tid)clearTimeout(_tid);
+    // Fase 2: bloqueio de plano na Análise
+    if(_res.status===402){
+      var _du=await _res.json().catch(function(){return {};});
+      if(typeof mostrarBannerUpgrade==='function') mostrarBannerUpgrade(_du.reason||'feature_locked', _du.error);
+      if(rep) rep.innerHTML=
+        '<div style="padding:24px 20px;text-align:center">'+
+        '<div style="font-size:2.2rem;margin-bottom:10px">\u2728</div>'+
+        '<div class="an-report-title" style="color:#a8883e">Recurso dos planos Jornada e Premium</div>'+
+        '<p style="color:#5a6a52;font-size:14px;margin:14px 0;line-height:1.7">A An\u00e1lise Sist\u00eamica completa faz parte dos planos pagos. Libere o seu mapa integrativo tornando-se membro.</p>'+
+        '<button class="btn-gold" onclick="pg(\'pgPlanos\')" style="margin-top:8px">Conhecer os planos \u2192</button>'+
+        '</div>';
+      return;
+    }
     if(_res.ok){
       var _d=await _res.json();
       if(_d&&_d.result&&typeof _d.result==='object'){
@@ -4869,6 +4936,9 @@ async function tReturn(){
 // ===== ANNA PANEL =====
 function renderAnna(){
   if(!CU) return;
+  // Fase 2: cadeado nas vozes pagas quando o usuário é free
+  var _pago = (typeof ehPago==='function') ? ehPago() : true;
+  document.querySelectorAll('.voz-lock').forEach(function(el){ el.style.display = _pago ? 'none' : 'inline'; });
   function set(id,v){var el=g(id);if(el)el.textContent=v;}
   set('aaAv', CU.name[0].toUpperCase());
   set('aaName', CU.name);
@@ -4952,9 +5022,16 @@ var _ANNA_MODE_PROMPTS = {
 };
 
 function annaSelectMode(el){
+  var mode = el.getAttribute('data-mode');
+  // Fase 2: no Free, só a Acolhedora (amorosa) é liberada. As outras exibem
+  // banner de upgrade e a seleção não muda.
+  if((mode==='reflexiva'||mode==='sistemica') && !ehPago()){
+    if(typeof mostrarBannerUpgrade==='function') mostrarBannerUpgrade('voice_locked');
+    return;
+  }
   document.querySelectorAll('.anna-mode-card').forEach(function(c){c.classList.remove('selected');});
   el.classList.add('selected');
-  _annaMode = el.getAttribute('data-mode');
+  _annaMode = mode;
 }
 
 function startAnnaSession(){
