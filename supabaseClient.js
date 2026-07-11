@@ -7,7 +7,14 @@ window.supabaseConfigured = true;
 var _sbScript = document.createElement('script');
 _sbScript.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js";
 _sbScript.onload = function(){
-  window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,   // captura o token do Magic Link ao voltar do e-mail
+      flowType: 'implicit'
+    }
+  });
   // ponte para o módulo AC que usa window.supabase
   window.supabase = window.sb;
   console.info("[SOUL] Supabase conectado ✓");
@@ -64,6 +71,11 @@ function _makeRestClient(url, key){
       getUser:function(){return Promise.resolve({data:{user:null},error:null});},
       getSession:function(){return Promise.resolve({data:{session:null},error:null});},
       signInWithPassword:function(){return Promise.resolve({data:null,error:{message:'Auth não disponível'}});},
+      // Fase 1: stubs para não quebrar o Magic Link se a CDN do Supabase cair.
+      // Este modo REST não faz auth real; apenas evita erro de função inexistente
+      // e informa o usuário de forma controlada.
+      signInWithOtp:function(){return Promise.resolve({data:null,error:{message:'Serviço de acesso temporariamente indisponível. Recarregue a página e tente novamente.'}});},
+      onAuthStateChange:function(){return {data:{subscription:{unsubscribe:function(){}}}};},
       signOut:function(){return Promise.resolve({error:null});}
     }
   };
