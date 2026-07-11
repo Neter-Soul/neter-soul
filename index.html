@@ -3346,8 +3346,16 @@ function doLogin() {
   }
   CU = u;
   closeLoginModal();
-  // Sincroniza plano com Supabase antes de navegar
-  syncPlanStatus().then(function() { pg(_loginDest || 'pgHome'); });
+  // Sincroniza plano e análise sistêmica com Supabase antes de navegar
+  // (Rem-04: sem o sync da análise, o gate e a tela de resultado dependiam
+  // só do localStorage local — se o relatório existisse apenas no banco
+  // (outro aparelho, cache limpo), o app agia como se ele nunca tivesse
+  // sido feito. Falha aqui nunca deve travar o login.)
+  Promise.all([
+    syncPlanStatus(),
+    (typeof syncSystemicAnalysisFromServer==='function' ? syncSystemicAnalysisFromServer() : Promise.resolve())
+  ]).then(function() { pg(_loginDest || 'pgHome'); })
+    .catch(function(){ pg(_loginDest || 'pgHome'); });
   // sync credits from Supabase after login
   setTimeout(function(){ if(window.SoulDB) window.SoulDB.refreshUIBalance(); }, 800);
 }
@@ -3703,6 +3711,12 @@ var anCur=0, anAns=[];
 
 function anInit() {
   if(!CU) return;
+  // Rede de segurança (Rem-04): se por algum motivo esta tela abriu sem
+  // passar pelo doLogin (ex.: F5 dentro da própria página), tenta puxar
+  // o relatório do servidor em background. Não bloqueia o render atual;
+  // se achar algo novo, quem usa isso depois (goToAnalysis, hasSystemicAnalysis)
+  // já vê o dado atualizado.
+  if(typeof syncSystemicAnalysisFromServer==='function') syncSystemicAnalysisFromServer();
   g('anAv').textContent = CU.name[0].toUpperCase();
   g('anName').textContent = CU.name;
   // Build steps
@@ -4352,6 +4366,51 @@ async function anShowSavedReport(){
   rep.innerHTML=CU._lastReportHTML;
 }
 
+// Rem-04: extraída de dentro de anShowReport para poder ser chamada também
+// quando o relatório vem do Supabase (sync no login), não só quando acabou
+// de ser gerado. Conteúdo idêntico ao que já existia — só virou função pura.
+function renderAnalysisReportHTML(report){
+  function rMov(m){if(!m||!m.titulo)return'';return'<div style="background:rgba(30,53,40,.04);border-left:3px solid #c4a55a;border-radius:0 10px 10px 0;padding:12px 14px;margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:#1e3528;margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em">'+m.titulo+'</div><div style="font-size:13px;color:#5a6a52;line-height:1.7">'+m.texto+'</div></div>';}
+  function scBloco(titulo,cor,icone,texto){if(!texto)return'';return'<div style="background:'+cor+'0d;border:1px solid '+cor+'33;border-radius:12px;padding:14px 16px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:7px;margin-bottom:6px"><i class="ti '+icone+'" style="font-size:13px;color:'+cor+'"></i><span style="font-size:11px;font-weight:700;color:'+cor+';text-transform:uppercase;letter-spacing:.08em">'+titulo+'</span></div><div style="font-size:12.5px;color:#5a6a52;line-height:1.7">'+texto+'</div></div>';}
+  var r=report;
+  var out=
+    '<div class="an-report-title">Mapa de Navega\u00e7\u00e3o Ps\u00edquica</div>'+
+    '<div class="an-report-sub">S\u00edntese cl\u00ednica integrativa com base nas suas 20 respostas.</div>'+
+    '<div class="an-rcard featured" style="margin-bottom:6px">'+
+      '<div class="an-rcard-tag" style="background:rgba(196,165,90,.15);color:#c4a55a;border:1px solid rgba(196,165,90,.3)">\u2726 Retrato da Paisagem Interna</div>'+
+      '<div class="an-rcard-text" style="font-size:13.5px;line-height:1.85;font-style:italic">'+((r.retrato&&r.retrato.paisagem_interna)||r.sintese.no_central)+'</div>'+
+    '</div>'+
+    '<div class="an-report-grid">'+
+    '<div class="an-rcard"><div class="an-rcard-tag" style="background:rgba(196,165,90,.1);color:#a8883e;border:1px solid rgba(196,165,90,.25)"><i class="ti ti-topology-star-3" style="font-size:10px"></i> Hellinger</div><div class="an-rcard-title">Campo Sist\u00eamico</div><div class="an-rcard-text">'+r.hellinger.padrao_sistemico+(r.mapa&&r.mapa.sombras?'<br><br><span style="font-size:11px;color:#9a8a72;font-style:italic">'+r.mapa.sombras+'</span>':'')+'</div></div>'+
+    '<div class="an-rcard"><div class="an-rcard-tag" style="background:rgba(100,140,180,.1);color:#5a90c8;border:1px solid rgba(100,140,180,.25)"><i class="ti ti-moon" style="font-size:10px"></i> Jung</div><div class="an-rcard-title">'+r.jung.arquetipo_dominante+'</div><div class="an-rcard-text">'+r.jung.sombra+'<br><br><span style="font-size:12px;color:#5a90c8">'+r.jung.individuacao+'</span></div></div>'+
+    '<div class="an-rcard"><div class="an-rcard-tag" style="background:rgba(200,100,100,.1);color:#c07070;border:1px solid rgba(200,100,100,.25)"><i class="ti ti-heart" style="font-size:10px"></i> Ferida Prim\u00e1ria</div><div class="an-rcard-title">'+r.feridas.primaria+' \u2014 '+r.feridas.mascara+'</div><div class="an-rcard-text">'+r.feridas.primaria_descricao+'<br><br><em style="color:#c07070;font-size:12px">'+r.feridas.crenca_nuclear+'</em></div></div>'+
+    '<div class="an-rcard"><div class="an-rcard-tag" style="background:rgba(100,180,140,.1);color:#50a080;border:1px solid rgba(100,180,140,.25)"><i class="ti ti-circles" style="font-size:10px"></i> Eneagrama</div><div class="an-rcard-title">Tipo '+r.eneagrama.tipo_provavel+' \u2014 '+r.eneagrama.tipo_nome+'</div><div class="an-rcard-text">'+r.eneagrama.medo_nuclear+'</div></div>'+
+    (r.dinamicas?'<div class="an-rcard"><div class="an-rcard-tag" style="background:rgba(160,120,200,.1);color:#9070c0;border:1px solid rgba(160,120,200,.25)"><i class="ti ti-wave-sine" style="font-size:10px"></i> Din\u00e2micas</div><div class="an-rcard-title">Padr\u00f5es Ocultos</div><div class="an-rcard-text">'+r.dinamicas.padrao_central+(r.dinamicas.lealdade_invisivel?'<br><br><span style="font-size:12px;color:#9070c0;font-style:italic">'+r.dinamicas.lealdade_invisivel+'</span>':'')+'</div></div>':'')+
+    '<div class="an-rcard featured"><div class="an-rcard-tag" style="background:rgba(196,165,90,.15);color:#c4a55a;border:1px solid rgba(196,165,90,.3)"><i class="ti ti-sparkles" style="font-size:10px"></i> S\u00edntese Integrativa</div><div class="an-rcard-title">O fio que conecta tudo</div><div class="an-rcard-text">'+r.sintese.no_central+'<br><br><span style="font-size:12px;color:#a8883e"><strong>Recurso:</strong> '+r.sintese.recurso_oculto+'</span><br><span style="font-size:12px;color:#8a9a82">'+r.sintese.foco_terapeutico+'</span></div></div>'+
+    '</div>'+
+    (r.recomendacoes?'<div style="margin-top:20px;margin-bottom:6px"><div style="font-size:11px;font-weight:700;color:#1e3528;margin-bottom:12px;text-transform:uppercase;letter-spacing:.1em"><i class="ti ti-compass" style="font-size:13px;color:#c4a55a;margin-right:6px"></i>Recomenda\u00e7\u00f5es Sist\u00eamicas</div>'+rMov(r.recomendacoes.mov1)+rMov(r.recomendacoes.mov2)+rMov(r.recomendacoes.mov3)+'</div>':'')+
+    // IMPACTOS NO DIA A DIA
+    ((r.impactos&&r.impactos.texto)?'<div class="an-rcard" style="margin-top:14px"><div class="an-rcard-tag" style="background:rgba(196,165,90,.1);color:#a8883e;border:1px solid rgba(196,165,90,.25)"><i class="ti ti-sun" style="font-size:10px"></i> Impactos no Dia a Dia</div><div class="an-rcard-text">'+r.impactos.texto+'</div></div>':'')+
+    // SÍNTESE CLÍNICA (5 eixos)
+    (r.sintese_clinica?'<div style="margin-top:20px;margin-bottom:6px">'+
+      '<div style="font-size:11px;font-weight:700;color:#1e3528;margin-bottom:12px;text-transform:uppercase;letter-spacing:.1em"><i class="ti ti-clipboard-heart" style="font-size:13px;color:#c4a55a;margin-right:6px"></i>S\u00edntese Cl\u00ednica</div>'+
+      scBloco('Pontos Fortes','#50a080','ti-arrow-up-circle',r.sintese_clinica.pontos_fortes)+
+      scBloco('Pontos Fr\u00e1geis','#c07070','ti-shield-half',r.sintese_clinica.pontos_frageis)+
+      scBloco('Pontos de Aten\u00e7\u00e3o','#c4a55a','ti-alert-circle',r.sintese_clinica.pontos_atencao)+
+      scBloco('Padr\u00f5es Sist\u00eamicos','#9070c0','ti-topology-star-3',r.sintese_clinica.padroes_sistemicos)+
+      scBloco('Cren\u00e7as Limitantes','#5a90c8','ti-lock',r.sintese_clinica.crencas_limitantes)+
+    '</div>':'')+
+    '<div style="background:linear-gradient(135deg,#1e3528,#2d5a3d);border-radius:14px;padding:20px;margin-top:6px;margin-bottom:20px">'+
+      '<div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:rgba(244,240,232,.4);margin-bottom:10px">Perfil da Dor</div>'+
+      '<p style="font-size:1.05rem;font-style:italic;color:rgba(244,240,232,.9);line-height:1.7;margin:0">\u201c'+r.perfil_dor+'\u201d</p>'+
+      '<p style="font-size:10px;color:rgba(244,240,232,.3);margin-top:14px;line-height:1.6;font-style:italic">Este mapa \u00e9 uma ferramenta de reflex\u00e3o. A profundidade da transforma\u00e7\u00e3o ocorre na presen\u00e7a e no di\u00e1logo.</p>'+
+    '</div>'+
+    '<div class="an-report-action"><div><h3>Pronto para aprofundar?</h3><p>Inicie uma sess\u00e3o com Anna Goldi usando este mapa como ponto de partida.</p></div>'+
+    '<button class="btn-gold" onclick="pg(\'pgAnna\')">Conversar com Anna Goldi \u2192</button></div>'+
+    '<button class="an-pdf-btn" onclick="anDownloadPDF()"><i class="ti ti-file-download" style="font-size:14px"></i> Baixar Relat\u00f3rio Completo em PDF</button>';
+  return out;
+}
+
 async function anShowReport(){
   var ANALYSIS_COST=4;
   var curBal=window.CU?(window.CU.credits||0):0;
@@ -4455,46 +4514,7 @@ async function anShowReport(){
     }catch(eSave){console.warn('[anReport] save error:',eSave.message);}
   })();
 
-  function rMov(m){if(!m||!m.titulo)return'';return'<div style="background:rgba(30,53,40,.04);border-left:3px solid #c4a55a;border-radius:0 10px 10px 0;padding:12px 14px;margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:#1e3528;margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em">'+m.titulo+'</div><div style="font-size:13px;color:#5a6a52;line-height:1.7">'+m.texto+'</div></div>';}
-  function scBloco(titulo,cor,icone,texto){if(!texto)return'';return'<div style="background:'+cor+'0d;border:1px solid '+cor+'33;border-radius:12px;padding:14px 16px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:7px;margin-bottom:6px"><i class="ti '+icone+'" style="font-size:13px;color:'+cor+'"></i><span style="font-size:11px;font-weight:700;color:'+cor+';text-transform:uppercase;letter-spacing:.08em">'+titulo+'</span></div><div style="font-size:12.5px;color:#5a6a52;line-height:1.7">'+texto+'</div></div>';}
-  var r=report;
-  var out=
-    '<div class="an-report-title">Mapa de Navega\u00e7\u00e3o Ps\u00edquica</div>'+
-    '<div class="an-report-sub">S\u00edntese cl\u00ednica integrativa com base nas suas 20 respostas.</div>'+
-    '<div class="an-rcard featured" style="margin-bottom:6px">'+
-      '<div class="an-rcard-tag" style="background:rgba(196,165,90,.15);color:#c4a55a;border:1px solid rgba(196,165,90,.3)">\u2726 Retrato da Paisagem Interna</div>'+
-      '<div class="an-rcard-text" style="font-size:13.5px;line-height:1.85;font-style:italic">'+((r.retrato&&r.retrato.paisagem_interna)||r.sintese.no_central)+'</div>'+
-    '</div>'+
-    '<div class="an-report-grid">'+
-    '<div class="an-rcard"><div class="an-rcard-tag" style="background:rgba(196,165,90,.1);color:#a8883e;border:1px solid rgba(196,165,90,.25)"><i class="ti ti-topology-star-3" style="font-size:10px"></i> Hellinger</div><div class="an-rcard-title">Campo Sist\u00eamico</div><div class="an-rcard-text">'+r.hellinger.padrao_sistemico+(r.mapa&&r.mapa.sombras?'<br><br><span style="font-size:11px;color:#9a8a72;font-style:italic">'+r.mapa.sombras+'</span>':'')+'</div></div>'+
-    '<div class="an-rcard"><div class="an-rcard-tag" style="background:rgba(100,140,180,.1);color:#5a90c8;border:1px solid rgba(100,140,180,.25)"><i class="ti ti-moon" style="font-size:10px"></i> Jung</div><div class="an-rcard-title">'+r.jung.arquetipo_dominante+'</div><div class="an-rcard-text">'+r.jung.sombra+'<br><br><span style="font-size:12px;color:#5a90c8">'+r.jung.individuacao+'</span></div></div>'+
-    '<div class="an-rcard"><div class="an-rcard-tag" style="background:rgba(200,100,100,.1);color:#c07070;border:1px solid rgba(200,100,100,.25)"><i class="ti ti-heart" style="font-size:10px"></i> Ferida Prim\u00e1ria</div><div class="an-rcard-title">'+r.feridas.primaria+' \u2014 '+r.feridas.mascara+'</div><div class="an-rcard-text">'+r.feridas.primaria_descricao+'<br><br><em style="color:#c07070;font-size:12px">'+r.feridas.crenca_nuclear+'</em></div></div>'+
-    '<div class="an-rcard"><div class="an-rcard-tag" style="background:rgba(100,180,140,.1);color:#50a080;border:1px solid rgba(100,180,140,.25)"><i class="ti ti-circles" style="font-size:10px"></i> Eneagrama</div><div class="an-rcard-title">Tipo '+r.eneagrama.tipo_provavel+' \u2014 '+r.eneagrama.tipo_nome+'</div><div class="an-rcard-text">'+r.eneagrama.medo_nuclear+'</div></div>'+
-    (r.dinamicas?'<div class="an-rcard"><div class="an-rcard-tag" style="background:rgba(160,120,200,.1);color:#9070c0;border:1px solid rgba(160,120,200,.25)"><i class="ti ti-wave-sine" style="font-size:10px"></i> Din\u00e2micas</div><div class="an-rcard-title">Padr\u00f5es Ocultos</div><div class="an-rcard-text">'+r.dinamicas.padrao_central+(r.dinamicas.lealdade_invisivel?'<br><br><span style="font-size:12px;color:#9070c0;font-style:italic">'+r.dinamicas.lealdade_invisivel+'</span>':'')+'</div></div>':'')+
-    '<div class="an-rcard featured"><div class="an-rcard-tag" style="background:rgba(196,165,90,.15);color:#c4a55a;border:1px solid rgba(196,165,90,.3)"><i class="ti ti-sparkles" style="font-size:10px"></i> S\u00edntese Integrativa</div><div class="an-rcard-title">O fio que conecta tudo</div><div class="an-rcard-text">'+r.sintese.no_central+'<br><br><span style="font-size:12px;color:#a8883e"><strong>Recurso:</strong> '+r.sintese.recurso_oculto+'</span><br><span style="font-size:12px;color:#8a9a82">'+r.sintese.foco_terapeutico+'</span></div></div>'+
-    '</div>'+
-    (r.recomendacoes?'<div style="margin-top:20px;margin-bottom:6px"><div style="font-size:11px;font-weight:700;color:#1e3528;margin-bottom:12px;text-transform:uppercase;letter-spacing:.1em"><i class="ti ti-compass" style="font-size:13px;color:#c4a55a;margin-right:6px"></i>Recomenda\u00e7\u00f5es Sist\u00eamicas</div>'+rMov(r.recomendacoes.mov1)+rMov(r.recomendacoes.mov2)+rMov(r.recomendacoes.mov3)+'</div>':'')+
-    // IMPACTOS NO DIA A DIA
-    ((r.impactos&&r.impactos.texto)?'<div class="an-rcard" style="margin-top:14px"><div class="an-rcard-tag" style="background:rgba(196,165,90,.1);color:#a8883e;border:1px solid rgba(196,165,90,.25)"><i class="ti ti-sun" style="font-size:10px"></i> Impactos no Dia a Dia</div><div class="an-rcard-text">'+r.impactos.texto+'</div></div>':'')+
-    // SÍNTESE CLÍNICA (5 eixos)
-    (r.sintese_clinica?'<div style="margin-top:20px;margin-bottom:6px">'+
-      '<div style="font-size:11px;font-weight:700;color:#1e3528;margin-bottom:12px;text-transform:uppercase;letter-spacing:.1em"><i class="ti ti-clipboard-heart" style="font-size:13px;color:#c4a55a;margin-right:6px"></i>S\u00edntese Cl\u00ednica</div>'+
-      scBloco('Pontos Fortes','#50a080','ti-arrow-up-circle',r.sintese_clinica.pontos_fortes)+
-      scBloco('Pontos Fr\u00e1geis','#c07070','ti-shield-half',r.sintese_clinica.pontos_frageis)+
-      scBloco('Pontos de Aten\u00e7\u00e3o','#c4a55a','ti-alert-circle',r.sintese_clinica.pontos_atencao)+
-      scBloco('Padr\u00f5es Sist\u00eamicos','#9070c0','ti-topology-star-3',r.sintese_clinica.padroes_sistemicos)+
-      scBloco('Cren\u00e7as Limitantes','#5a90c8','ti-lock',r.sintese_clinica.crencas_limitantes)+
-    '</div>':'')+
-    '<div style="background:linear-gradient(135deg,#1e3528,#2d5a3d);border-radius:14px;padding:20px;margin-top:6px;margin-bottom:20px">'+
-      '<div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:rgba(244,240,232,.4);margin-bottom:10px">Perfil da Dor</div>'+
-      '<p style="font-size:1.05rem;font-style:italic;color:rgba(244,240,232,.9);line-height:1.7;margin:0">\u201c'+r.perfil_dor+'\u201d</p>'+
-      '<p style="font-size:10px;color:rgba(244,240,232,.3);margin-top:14px;line-height:1.6;font-style:italic">Este mapa \u00e9 uma ferramenta de reflex\u00e3o. A profundidade da transforma\u00e7\u00e3o ocorre na presen\u00e7a e no di\u00e1logo.</p>'+
-    '</div>'+
-    '<div class="an-report-action"><div><h3>Pronto para aprofundar?</h3><p>Inicie uma sess\u00e3o com Anna Goldi usando este mapa como ponto de partida.</p></div>'+
-    '<button class="btn-gold" onclick="pg(\'pgAnna\')">Conversar com Anna Goldi \u2192</button></div>'+
-    '<button class="an-pdf-btn" onclick="anDownloadPDF()"><i class="ti ti-file-download" style="font-size:14px"></i> Baixar Relat\u00f3rio Completo em PDF</button>';
-
-  rep.innerHTML=out;
+  rep.innerHTML=renderAnalysisReportHTML(report);
   if(CU){CU._lastReportHTML=rep.innerHTML;saveCU();}
   dbS('an_draft',null);
   if(typeof markInitialAnalysisDone==='function') markInitialAnalysisDone();
@@ -6327,6 +6347,68 @@ async function renderCreditsPage(){
   } else {
     patchSoulDB();
   }
+})();
+</script>
+
+<script>
+/* ═══ Rem-04 — sincronizar Análise Sistêmica com o Supabase no login ═══
+   Diagnóstico: completeSystemicAnalysis() já grava certo em
+   public.systemic_analysis (confirmado via consulta direta — 4 registros,
+   status completed, result preenchido). O bug não é na escrita.
+   É na leitura: hasSystemicAnalysis(), home() (gate do svcBlock),
+   goToAnalysis() e anShowSavedReport() checam só CU._lastReport /
+   CU._lastReportHTML — campos que só existem se o gerador rodou NESTE
+   navegador. CU inteiro vem de getUser() → localStorage; doLogin() nunca
+   busca o relatório de volta no servidor. Resultado: troque de aparelho,
+   limpe o cache, ou perca o localStorage — o relatório "some" mesmo
+   intacto no banco.
+   Este patch adiciona a leitura que faltava e a pluga no doLogin/anInit,
+   sem tocar na lógica de geração nem no gate em si (home() continua lendo
+   CU.hasCompletedInitialSystemicAnalysis normalmente — só que agora esse
+   campo reflete o banco, não só a sessão que gerou o relatório). */
+(function(){
+  function patchSoulDBAnalysis(){
+    if(!window.SoulDB) return;
+    window.SoulDB.getLatestSystemicAnalysis = async function(profileId){
+      if(!profileId || !window.sb) return null;
+      try{
+        var res = await window.sb
+          .from('systemic_analysis')
+          .select('answers, result, status, created_at')
+          .eq('user_id', profileId)
+          .eq('status', 'completed')
+          .order('created_at', { ascending:false })
+          .limit(1)
+          .maybeSingle();
+        if(res.error){ console.warn('[getLatestSystemicAnalysis]', res.error.message); return null; }
+        return res.data || null;
+      }catch(e){ console.warn('[getLatestSystemicAnalysis]', e.message); return null; }
+    };
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', patchSoulDBAnalysis);
+  } else {
+    patchSoulDBAnalysis();
+  }
+
+  window.syncSystemicAnalysisFromServer = async function(){
+    if(!window.SoulDB || !window.CU) return;
+    try{
+      var pid = await window.SoulDB.getProfileId();
+      if(!pid) return;
+      var row = await window.SoulDB.getLatestSystemicAnalysis(pid);
+      if(row && row.result){
+        window.CU._lastReport = row.result;
+        if(typeof renderAnalysisReportHTML==='function'){
+          window.CU._lastReportHTML = renderAnalysisReportHTML(row.result);
+        }
+        window.CU.hasCompletedInitialSystemicAnalysis = true;
+        if(typeof saveCU==='function') saveCU();
+      }
+      // Se não achou nada no servidor, não mexe no que já está em CU —
+      // localStorage continua sendo o fallback, nunca é apagado por isto.
+    }catch(e){ console.warn('[syncSystemicAnalysisFromServer]', e.message); }
+  };
 })();
 </script>
 
