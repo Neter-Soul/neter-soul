@@ -2213,22 +2213,22 @@ img{max-width:100%}
         </div>
       </div>
 
-      <!-- BARRA DE CRÉDITOS -->
+      <!-- BARRA DE TEMPO DIÁRIO (Rem-06: substitui a antiga barra de Créditos Soul) -->
       <div class="anna-credit-bar" id="annaCreditBar" style="display:none">
         <div class="anna-credit-side">
-          <div class="anna-credit-lbl">Investimento deste momento terapêutico</div>
-          <div class="anna-credit-val"><span id="acbDur">45</span> minutos • <span id="acbCost">5</span> Créditos Soul</div>
+          <div class="anna-credit-lbl">Duração desta sessão</div>
+          <div class="anna-credit-val"><span id="acbDur">45</span> minutos</div>
         </div>
         <div class="anna-credit-divider"></div>
         <div class="anna-credit-side">
-          <div class="anna-credit-lbl">Seu saldo</div>
-          <div class="anna-credit-val gold"><span id="acbBalance">500</span> Créditos Soul disponíveis</div>
+          <div class="anna-credit-lbl">Seu tempo hoje</div>
+          <div class="anna-credit-val gold"><span id="acbBalance">60</span> min dispon\u00edveis hoje</div>
         </div>
       </div>
-      <!-- AVISO CRÉDITOS INSUFICIENTES -->
+      <!-- AVISO LIMITE DI\u00c1RIO PR\u00d3XIMO DO FIM -->
       <div class="anna-credit-warn" id="annaCreditWarn" style="display:none">
         <i class="ti ti-alert-circle" aria-hidden="true" style="font-size:16px;color:#c08060;flex-shrink:0;margin-top:1px"></i>
-        <div>Sessão disponível no seu plano.</div>
+        <div>Seu tempo di\u00e1rio com a Anna est\u00e1 quase no fim. Ele renova \u00e0 meia-noite.</div>
       </div>
       <!-- botão comprar créditos: removido -->
 
@@ -2329,7 +2329,7 @@ img{max-width:100%}
       <div class="ac-sess-info">
         <div class="ac-sess-lbl">Sessão atual</div>
         <div class="ac-sess-row"><span class="ac-sess-key">Duração</span><span class="ac-sess-val" id="acDurVal">45 min</span></div>
-        <div class="ac-sess-row"><span class="ac-sess-key">Créditos</span><span class="ac-sess-val">12 / 20</span></div>
+        <div class="ac-sess-row"><span class="ac-sess-key">Hoje</span><span class="ac-sess-val" id="acDailyLeftVal">\u2014</span></div>
         <div class="ac-sess-row"><span class="ac-sess-key">Mensagens</span><span class="ac-sess-val" id="acMsgCnt">0</span></div>
       </div>
       <div class="ac-summary">
@@ -4425,15 +4425,8 @@ function renderAnalysisReportHTML(report){
 }
 
 async function anShowReport(){
-  var ANALYSIS_COST=4;
-  var curBal=window.CU?(window.CU.credits||0):0;
-  if(curBal<ANALYSIS_COST){
-    var rep0=g('anReport');if(rep0)rep0.style.display='block';
-    if(rep0)rep0.innerHTML='<div class="an-report-title" style="color:#9a4646">Cr\u00e9ditos insuficientes</div>'+
-      '<p style="color:#5a6a52;font-size:14px;margin:12px 0">Voc\u00ea precisa de <strong>'+ANALYSIS_COST+' Cr\u00e9ditos Soul</strong> para gerar sua An\u00e1lise Sist\u00eamica.</p>'+
-      '<button class="btn-gold" onclick="pg(\'pgTherapists\')" style="margin-top:8px">Comprar Cr\u00e9ditos Soul \u2192</button>';
-    return;
-  }
+  // Rem-06: Análise Sistêmica não custa mais Créditos Soul — o acesso
+  // é definido pelo plano (paywall em isPlanoAtivo()), não por saldo.
   g('anQArea').style.display='none';
   g('anSteps').style.display='none';
   g('anPF').style.width='100%';
@@ -4817,15 +4810,16 @@ function annaCreditsFor(dur){
   return Math.ceil(dur/10);
 }
 function annaUpdateCreditBar(){
+  // Rem-06: não existe mais custo em Créditos Soul. A barra agora mostra
+  // a duração escolhida e quanto do limite diário (60min, ver acInit)
+  // ainda resta — reaproveita o mesmo contador que já trava o chat.
   function set(id,v){var el=g(id);if(el)el.textContent=v;}
   var dur=_dur||45;
-  var cost=annaCreditsFor(dur);
-  var bal=CU?(CU.credits||0):0;
+  var dailyLeft=Math.max(0, 60-acGetDailyUsedMins());
   set('acbDur', dur);
-  set('acbCost', cost);
-  set('acbBalance', bal);
+  set('acbBalance', dailyLeft);
   var warn=g('annaCreditWarn');
-  if(warn) warn.style.display = bal<cost ? 'flex' : 'none';
+  if(warn) warn.style.display = (dailyLeft>0 && dailyLeft<=15) ? 'flex' : 'none';
 }
 function annaSetDur(btn,dur){
   document.querySelectorAll('#annaDurRow .dur-btn').forEach(function(b){b.classList.remove('on');});
@@ -4947,6 +4941,8 @@ function acInit(){
       _dailyEl.style.color = _dailyLeft <= 15 ? '#c07070' : '#8a9a82';
     }
   }
+  var _dailyValEl = g('acDailyLeftVal');
+  if(_dailyValEl) _dailyValEl.textContent = _dailyLeft > 0 ? (_dailyLeft + 'min') : 'esgotado';
   g('acDurLbl').textContent=_dur;
   g('acDurVal').textContent=_dur+' min';
   g('acMsgCnt').textContent='0';
@@ -5197,7 +5193,9 @@ async function endAnnaChat(auto){
   var dur = _dur||45;
   // Registrar minutos usados no dia (se não foi encerramento automático, que já registrou)
   if(!auto) acAddDailyMins(Math.round(acSecs/60));
-  var cost = annaCreditsFor(dur);
+  // Rem-06: créditos não fazem mais parte do produto — acesso à Anna é
+  // por tempo diário (acAddDailyMins/acGetDailyUsedMins), não por saldo.
+  var cost = 0;
   var summary = '';
   var histText = '';
   // Gerar resumo ANTES de salvar (aguarda)
@@ -5232,7 +5230,7 @@ async function endAnnaChat(auto){
   });
   if(result.ok){
     if(window.SoulDB) await window.SoulDB.refreshUIBalance();
-    toast('Sessão encerrada. ' + cost + ' Crédito(s) Soul utilizados.');
+    toast('Sessão encerrada.');
   } else {
     toast('Atenção: ' + (result.error||'Sessão encerrada.'));
   }
@@ -5771,7 +5769,6 @@ function thOpenProfile(id){
   }
 }
 function _thFillProfile(t){
-  var canBook=true; // sistema de assinatura — acesso sempre liberado
   var ph=document.getElementById('tmPhoto');
   if(ph){
     if(t.photo && t.photo.length>4){
@@ -5807,14 +5804,19 @@ function _thFillProfile(t){
       if(t.slots&&t.slots.length){ sl.innerHTML=t.slots.map(function(s){return'<div class="th-modal-slot" onclick="thPickModalSlot(this,\''+s+'\')">'+s+'</div>';}).join(''); }
       else { sl.innerHTML='<div style="font-size:12px;color:#8a9a82;padding:10px 0;font-style:italic">Hor\u00e1rios em breve \u2014 entre em contato para agendar.</div>'; }
     }
-    var cost=document.getElementById('tmCost');if(cost)cost.textContent='\u2726 '+t.credits;
+    var isPremium = !!(CU && CU.supabase_plan_name === 'premium');
+    var cost=document.getElementById('tmCost');
+    if(cost) cost.textContent = isPremium ? 'Inclu\u00edda no seu plano Premium' : 'R$150 por sess\u00e3o avulsa';
     var dur=document.getElementById('tmDur');if(dur)dur.textContent=t.duration+' min de sess\u00e3o';
-    var bal=document.getElementById('tmBalance');if(bal){bal.textContent=cr+' cr\u00e9ditos';bal.style.color=canBook?'#3d6035':'#c07070';}
-    var balLbl=document.getElementById('tmBalLbl');if(balLbl)balLbl.textContent=canBook?'Saldo suficiente \u2713':'Saldo insuficiente \u2717';
-    var insuf=document.getElementById('tmInsuf');if(insuf)insuf.style.display=canBook?'none':'flex';
+    var bal=document.getElementById('tmBalance');
+    if(bal){bal.textContent=isPremium?'Sess\u00e3o mensal dispon\u00edvel':'N\u00e3o inclu\u00edda no seu plano';bal.style.color=isPremium?'#3d6035':'#8a9a82';}
+    var balLbl=document.getElementById('tmBalLbl');if(balLbl)balLbl.textContent=isPremium?'Plano Premium \u2713':'Plano Jornada';
+    var insuf=document.getElementById('tmInsuf');if(insuf)insuf.style.display='none';
     var btn=document.getElementById('tmBookBtn');
-    if(btn){if(canBook){btn.innerHTML='<i class="ti ti-calendar-plus"></i> Agendar com cr\u00e9ditos';btn.style.background='#1e3528';btn.onclick=thBookSession;}
-    else{btn.innerHTML='<i class="ti ti-coins"></i> Comprar cr\u00e9ditos';btn.style.background='#c4a55a';btn.onclick=function(){closeThProfile();pg('pgComprar');};}}
+    if(btn){
+      if(isPremium){btn.innerHTML='<i class="ti ti-calendar-plus"></i> Agendar sess\u00e3o';btn.style.background='#1e3528';btn.onclick=thBookSession;}
+      else{btn.innerHTML='<i class="ti ti-calendar-plus"></i> Contratar sess\u00e3o avulsa \u2014 R$150';btn.style.background='#c4a55a';btn.onclick=function(){closeThProfile();irCheckout('terapeuta');};}
+    }
   }
 }
 
@@ -5827,14 +5829,14 @@ function closeThProfile(){var m=document.getElementById('thProfileModal');if(m){
 function thBookSession(){
   if(!thCurrent)return;
   if(!thSlot){toast('Selecione um horário antes de agendar.');return;}
-  var cr=CU?(CU.credits||0):0;
-  if(cr<thCurrent.credits){closeThProfile();openBuyCreditsModal();return;}
-  CU.credits=cr-thCurrent.credits;
+  // Rem-06: sem créditos. Sessão com terapeuta humano é inclusa no plano
+  // Premium (1x/mês, conforme oferta em pgPlanos) — quem chegou até aqui
+  // e não é Premium é redirecionado pra sessão avulsa em _thFillProfile,
+  // então esta função só executa o agendamento gratuito do Premium.
   CU.sessions=CU.sessions||[];
-  CU.sessions.push({name:CU.name,age:CU.age||'',reason:'Sessão com '+thCurrent.name,date:new Date().toLocaleDateString('pt-BR'),dur:thCurrent.duration,therapist:thCurrent.name,slot:thSlot,credits:thCurrent.credits,isHuman:true});
-  saveCU();closeThProfile();thRefreshCredits();thRenderList();
-  var hCr=document.getElementById('hCredits');if(hCr)hCr.textContent=CU.credits;
-  toast('✓ Sessão agendada com '+thCurrent.name+' · '+thSlot+' · '+thCurrent.credits+' créditos debitados');
+  CU.sessions.push({name:CU.name,age:CU.age||'',reason:'Sessão com '+thCurrent.name,date:new Date().toLocaleDateString('pt-BR'),dur:thCurrent.duration,therapist:thCurrent.name,slot:thSlot,isHuman:true});
+  saveCU();closeThProfile();thRenderList();
+  toast('✓ Sessão agendada com '+thCurrent.name+' · '+thSlot);
 }
 
 function openBuyCreditsModal(){closeBuyCreditsModal();pg('pgComprar');}
