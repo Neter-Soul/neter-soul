@@ -1532,6 +1532,29 @@ img{max-width:100%}
 
 
 <!-- MODAL CADASTRO COMPLETO -->
+<!-- CARD DE BOAS-VINDAS (primeiro acesso) — dá identidade ao e-mail -->
+<div id="welcomeModal" style="position:fixed;inset:0;background:rgba(30,53,40,.55);z-index:600;display:none;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#faf7f0;border-radius:20px;max-width:420px;width:100%;padding:0;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="background:linear-gradient(135deg,#1e3528,#2d5a3d);padding:24px 24px 20px">
+      <div style="font-size:2rem;margin-bottom:8px">🌿</div>
+      <div style="font-family:'Fraunces',serif;font-size:1.4rem;font-weight:900;color:#f4f0e8;margin-bottom:4px">Bem-vindo(a) à SOUL</div>
+      <div style="font-size:12.5px;color:rgba(244,240,232,.75);line-height:1.6">Antes de começar, conte pra gente como quer ser chamado(a).</div>
+    </div>
+    <div style="padding:22px 24px 24px">
+      <div class="frm-err" id="wmErr" style="display:none;background:#fce8e8;color:#9a4646;padding:8px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Por favor, informe seu nome.</div>
+      <div class="frm-field" style="margin-bottom:14px">
+        <label class="frm-label" style="display:block;font-size:11px;font-weight:700;color:#5a6a52;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Como quer ser chamado(a)? *</label>
+        <input class="frm-inp" id="wmName" type="text" placeholder="Seu nome" style="width:100%;padding:11px 12px;border:1px solid rgba(196,165,90,.3);border-radius:10px;font-size:14px;box-sizing:border-box">
+      </div>
+      <div class="frm-field" style="margin-bottom:20px">
+        <label class="frm-label" style="display:block;font-size:11px;font-weight:700;color:#5a6a52;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">WhatsApp <span style="color:#8a9a82;font-weight:400;text-transform:none">(opcional)</span></label>
+        <input class="frm-inp" id="wmWhats" type="tel" placeholder="(00) 00000-0000" style="width:100%;padding:11px 12px;border:1px solid rgba(196,165,90,.3);border-radius:10px;font-size:14px;box-sizing:border-box">
+      </div>
+      <button class="btn-forest" style="width:100%;justify-content:center;padding:12px" onclick="salvarBoasVindas()">Começar minha jornada <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+    </div>
+  </div>
+</div>
+
 <div id="fullRegModal" onclick="if(event.target===this)closeFullReg()">
   <div class="frm-wrap">
     <div class="frm-hd">
@@ -1547,6 +1570,8 @@ img{max-width:100%}
       <div id="fsStep0">
         <div class="frm-err" id="fsErr0">Verifique os campos obrigatórios.</div>
         <div class="frm-section-title"><i class="ti ti-user-circle" aria-hidden="true"></i> Dados pessoais</div>
+        <div class="frm-field"><label class="frm-label">Nome completo *</label><input class="frm-inp" id="fsName" type="text" placeholder="Seu nome completo"></div>
+        <div class="frm-field"><label class="frm-label">WhatsApp</label><input class="frm-inp" id="fsWhats" type="tel" placeholder="(00) 00000-0000"></div>
         <div class="frm-row">
           <div class="frm-field"><label class="frm-label">Data de nascimento</label><input class="frm-inp" id="fsDob" type="date"></div>
           <div class="frm-field"><label class="frm-label">Estado civil</label><select class="frm-inp frm-select" id="fsCivil"><option value="">Selecione</option><option>Solteiro(a)</option><option>Casado(a)</option><option>União estável</option><option>Divorciado(a)</option><option>Viúvo(a)</option><option>Prefiro não informar</option></select></div>
@@ -3507,7 +3532,8 @@ async function onMagicSession(session){
       plan: _plano,
       supabase_plan_name: _plano,
       supabase_plan: _planoOk ? 'active' : 'inactive',
-      plan_status: _planoOk ? 'active' : 'inactive'
+      plan_status: _planoOk ? 'active' : 'inactive',
+      profileComplete: !!prof.profile_complete
     });
     delete CU.pass; // senha não existe mais neste modelo
     saveUser(prof.name, CU);
@@ -3516,7 +3542,13 @@ async function onMagicSession(session){
     Promise.all([
       (typeof syncPlanStatus==='function'?syncPlanStatus():Promise.resolve()),
       (typeof syncSystemicAnalysisFromServer==='function'?syncSystemicAnalysisFromServer():Promise.resolve())
-    ]).then(function(){ pg(_loginDest||'pgHome'); }).catch(function(){ pg(_loginDest||'pgHome'); });
+    ]).then(function(){
+      pg(_loginDest||'pgHome');
+      // Primeiro acesso: pede nome/whats para dar identidade ao e-mail.
+      if(typeof precisaBoasVindas==='function' && precisaBoasVindas()){
+        setTimeout(function(){ abrirBoasVindas(); }, 600);
+      }
+    }).catch(function(){ pg(_loginDest||'pgHome'); });
     setTimeout(function(){ if(window.SoulDB) window.SoulDB.refreshUIBalance(); },800);
   }catch(e){ console.warn('[onMagicSession]', e.message); }
 }
@@ -3617,6 +3649,44 @@ function markInitialAnalysisDone() {
   if(sb) sb.style.display = 'block';
 }
 
+// ═══ Card de boas-vindas (primeiro acesso) ═══
+function precisaBoasVindas(){
+  // Precisa se ainda não temos um nome "de verdade" (só o pedaço do e-mail).
+  if(!CU) return false;
+  if(CU._welcomeDone) return false;
+  var nome = (CU.name||'').trim();
+  var emailPrefix = (CU.email||'').split('@')[0];
+  // Sem nome, ou nome ainda igual ao prefixo do e-mail = não personalizou.
+  return !nome || nome.toLowerCase() === emailPrefix.toLowerCase();
+}
+function abrirBoasVindas(){
+  var m=g('welcomeModal'); if(!m) return;
+  var n=g('wmName'); if(n) n.value = (CU && CU.name) || '';
+  m.style.display='flex';
+  setTimeout(function(){ if(n) n.focus(); }, 200);
+}
+async function salvarBoasVindas(){
+  var nome=(g('wmName').value||'').trim();
+  var whats=(g('wmWhats').value||'').trim();
+  var err=g('wmErr');
+  if(!nome){ if(err){err.style.display='block';} return; }
+  if(err) err.style.display='none';
+  CU.name=nome; if(whats) CU.whatsapp=whats;
+  CU._welcomeDone=true;
+  saveCU();
+  // Persiste no Supabase (nome + telefone no perfil real)
+  try{
+    if(window.sb && CU.supabase_id){
+      var upd={ name:nome }; if(whats) upd.phone=whats;
+      await window.sb.from('profiles').update(upd).eq('id', CU.supabase_id);
+    }
+  }catch(e){ console.warn('[boasVindas] persist:', e.message); }
+  var m=g('welcomeModal'); if(m) m.style.display='none';
+  // Atualiza saudação da home
+  if(typeof home==='function') home();
+  toast('Prazer, '+nome.split(' ')[0]+'! 🌿');
+}
+
 function abrirAnalise(){
   // Fase 2: Análise Sistêmica é recurso pago. O Free vê o banner de upgrade
   // ANTES de responder as 10 perguntas (não depois), evitando trabalho à toa.
@@ -3630,6 +3700,8 @@ function abrirAnalise(){
 function openFullReg() {
   _fsStep = 0; fsShowStep(0);
   if(CU){
+    if(CU.name) g('fsName').value=CU.name;
+    if(CU.whatsapp) g('fsWhats').value=CU.whatsapp;
     if(CU.dob) g('fsDob').value=CU.dob;
     if(CU.city) g('fsCity').value=CU.city;
     if(CU.profession) g('fsProfession').value=CU.profession;
@@ -3647,10 +3719,18 @@ function fsShowStep(s){
   g('fsStep1').style.display=s===1?'block':'none';
   for(var i=0;i<2;i++){var d=g('fsDot'+i);if(d)d.className='frm-step-dot'+(i<=s?' on':'');}
 }
-function fsNext(){ fsShowStep(1); }
+function fsNext(){
+  var nome=(g('fsName').value||'').trim();
+  if(!nome){ var e=g('fsErr0'); if(e){e.textContent='Por favor, informe seu nome completo.';e.style.display='block';setTimeout(function(){e.style.display='none';},3000);} return; }
+  fsShowStep(1);
+}
 function fsBack(){ fsShowStep(0); }
 function fsSave(){
   if(!CU)return;
+  var nome=(g('fsName').value||'').trim();
+  if(!nome){ fsShowStep(0); var e=g('fsErr0'); if(e){e.textContent='Por favor, informe seu nome completo.';e.style.display='block';setTimeout(function(){e.style.display='none';},3000);} return; }
+  CU.name=nome;
+  var whats=(g('fsWhats').value||'').trim(); if(whats) CU.whatsapp=whats;
   CU.dob=g('fsDob').value; CU.civil=g('fsCivil').value;
   CU.city=g('fsCity').value.trim(); CU.state=g('fsState').value;
   CU.profession=g('fsProfession').value.trim();
@@ -3660,9 +3740,34 @@ function fsSave(){
   var rems=document.getElementsByName('fsReminder');
   for(var i=0;i<rems.length;i++){if(rems[i].checked){CU.reminder=rems[i].value;break;}}
   CU.obs=g('fsObs').value.trim();
+  CU._welcomeDone=true;
   CU.profileComplete=true; saveCU();
+  // Persiste no Supabase (perfil real), não só no localStorage.
+  (async function(){
+    try{
+      if(window.sb && CU.supabase_id){
+        var upd={
+          name: nome,
+          profile_complete:true,
+          birth_date: CU.dob||null,
+          city: CU.city||null,
+          state: CU.state||null,
+          profession: CU.profession||null
+        };
+        if(CU.whatsapp) upd.phone=CU.whatsapp;
+        await window.sb.from('profiles').update(upd).eq('id', CU.supabase_id);
+      }
+    }catch(e){ console.warn('[fsSave] persist:', e.message); }
+  })();
   closeFullReg();
   var c=g('completeCadCard'); if(c) c.style.display='none';
+  // Se veio de um upgrade que exigiu o cadastro, retoma o checkout.
+  if(_ckPendentePlano){
+    var _p=_ckPendentePlano; _ckPendentePlano=null;
+    toast('Cadastro completo! Seguindo para o plano.');
+    setTimeout(function(){ irCheckout(_p); }, 400);
+    return;
+  }
   toast('Cadastro completo! Sua jornada foi personalizada. 🌿');
 }
 
@@ -6904,7 +7009,16 @@ function _atualizarPrecos() {
 }
 
 // ---- Ir para checkout ----
+var _ckPendentePlano = null;
 function irCheckout(plan) {
+  // No upgrade, exige cadastro completo (dados de contato/cobrança).
+  // Se ainda não completou, abre o cadastro que já existe e retoma depois.
+  if(plan !== 'terapeuta' && CU && !CU.profileComplete){
+    _ckPendentePlano = plan;
+    toast('Complete seu cadastro para seguir com o plano.');
+    if(typeof openFullReg==='function') openFullReg();
+    return;
+  }
   _ckPlan = plan;
   _ckVoucher = null;
   _ckVoucherCode = '';
