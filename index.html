@@ -7085,7 +7085,7 @@ function _atualizarResumo() {
 
 // ---- Validar voucher ----
 async function validarVoucher() {
-  const code = document.getElementById('voucherInput').value.trim();
+  const code = document.getElementById('voucherInput').value.trim().toUpperCase();
   const fb = document.getElementById('voucherFeedback');
   const btn = document.getElementById('btnValidarVoucher');
 
@@ -7097,27 +7097,36 @@ async function validarVoucher() {
   fb.textContent = '';
 
   try {
-    const resp = await fetch('/.netlify/functions/validate-voucher', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, plan: _ckPlan }),
-    });
-    const data = await resp.json();
+    // Validação direta no Supabase (não depende de function Netlify).
+    const res = await window.sb.from('vouchers').select('*').eq('code', code).limit(1).maybeSingle();
+    const v = (!res.error && res.data) ? res.data : null;
 
-    if (data.valid) {
-      _ckVoucher = { type: data.type, value: data.value, duration_days: data.duration_days };
+    if (!v) {
+      _ckVoucher = null; _ckVoucherCode = '';
+      fb.className = 'voucher-feedback erro';
+      fb.textContent = 'Código não encontrado.';
+    } else if (!v.active) {
+      _ckVoucher = null; _ckVoucherCode = '';
+      fb.className = 'voucher-feedback erro';
+      fb.textContent = 'Este código não está mais ativo.';
+    } else if (v.uses_max != null && v.uses_count != null && v.uses_count >= v.uses_max) {
+      _ckVoucher = null; _ckVoucherCode = '';
+      fb.className = 'voucher-feedback erro';
+      fb.textContent = 'Este código já atingiu o limite de usos.';
+    } else {
+      _ckVoucher = { type: v.type, plan_target: v.plan_target, duration_days: v.duration_days };
       _ckVoucherCode = code;
       fb.className = 'voucher-feedback ok';
-      fb.textContent = '✓ ' + data.message;
-    } else {
-      _ckVoucher = null;
-      _ckVoucherCode = '';
-      fb.className = 'voucher-feedback erro';
-      fb.textContent = data.message || 'Código inválido';
+      if (v.type === 'free') {
+        fb.textContent = '✓ Acesso liberado! Clique em "Ativar acesso" abaixo.';
+      } else {
+        fb.textContent = '✓ Código aplicado.';
+      }
     }
-  } catch {
+  } catch (e) {
+    _ckVoucher = null; _ckVoucherCode = '';
     fb.className = 'voucher-feedback erro';
-    fb.textContent = 'Erro ao validar código. Tente novamente.';
+    fb.textContent = 'Erro ao validar. Tente novamente.';
   }
 
   btn.disabled = false;
@@ -7129,81 +7138,63 @@ async function validarVoucher() {
 async function iniciarPagamento() {
   const btn = document.getElementById('btnPagar');
 
-  // Sempre revalida o código digitado direto com o backend antes de decidir o fluxo
+  // Revalida o código digitado direto no Supabase antes de decidir o fluxo.
   const vInput = document.getElementById('voucherInput');
-  const codigoDigitado = vInput ? vInput.value.trim() : '';
+  const codigoDigitado = vInput ? vInput.value.trim().toUpperCase() : '';
 
-  if (codigoDigitado) {
-    try {
-      const vResp = await fetch('/.netlify/functions/validate-voucher', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: codigoDigitado, plan: _ckPlan }),
-      });
-      const vData = await vResp.json();
-      if (vData.valid) {
-        _ckVoucher = { type: vData.type, value: vData.value, duration_days: vData.duration_days };
-        _ckVoucherCode = codigoDigitado;
-        // Atualiza feedback visual
-        const fb = document.getElementById('voucherFeedback');
-        if (fb) { fb.className = 'voucher-feedback ok'; fb.textContent = '✓ ' + vData.message; }
-        _atualizarResumo();
-      } else {
-        _ckVoucher = null;
-        _ckVoucherCode = '';
-        const fb = document.getElementById('voucherFeedback');
-        if (fb) { fb.className = 'voucher-feedback erro'; fb.textContent = vData.message || 'Código inválido'; }
-        _atualizarResumo();
-        alert('⚠️ ' + (vData.message || 'Código de desconto inválido.'));
-        return; // não prossegue se o código digitado é inválido
-      }
-    } catch(e) {
-      alert('Erro ao validar código: ' + e.message);
+  if (codigoDigitado && !_ckVoucher) {
+    await validarVoucher(); // popula _ckVoucher se válido
+    if (!_ckVoucher) {
+      alert('⚠️ Código de desconto inválido.');
       return;
     }
   }
 
-  // Voucher gratuito: não vai ao MP
+  // Voucher gratuito: ativa o plano direto no banco, sem passar pelo MP.
   if (_ckVoucher && _ckVoucher.type === 'free') {
     btn.disabled = true;
     btn.textContent = 'Ativando acesso...';
     try {
-      const resp = await fetch('/.netlify/functions/create-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plan: _ckPlan,
-          billing: _ckBilling,
-          voucher_code: _ckVoucherCode,
-          user_id: CU?.supabase_id || CU?.id,
-          user_email: CU?.email,
-          user_name: CU?.name,
-        }),
-      });
-      const data = await resp.json();
-      if (data.free) {
-        // Ativa localmente antes de navegar
-        if (CU) {
-          CU.supabase_plan = 'active';
-          CU.plan_status = 'active';
-          CU.supabase_plan_name = _ckPlan;
-          saveCU();
-        }
-        // Vai direto para home usando bypass do paywall
-        window._paywallBypass = true;
-        pg('pgHome');
-        window._paywallBypass = false;
-        setTimeout(function(){ alert('✅ Acesso liberado! Bem-vindo ao Neter Soul.'); }, 300);
-        return;
+      const plano = _ckVoucher.plan_target === 'all' ? 'premium' : (_ckVoucher.plan_target || _ckPlan || 'premium');
+      const expira = _ckVoucher.duration_days
+        ? new Date(Date.now() + _ckVoucher.duration_days * 86400000).toISOString()
+        : null;
+
+      if (window.sb && CU && CU.supabase_id) {
+        // aplica plano no perfil
+        await window.sb.from('profiles').update({
+          plan: plano,
+          plan_status: 'active',
+          plan_expires_at: expira
+        }).eq('id', CU.supabase_id);
+        // incrementa uso do voucher (best-effort)
+        try {
+          const cur = await window.sb.from('vouchers').select('uses_count').eq('code', _ckVoucherCode).maybeSingle();
+          const novo = ((cur.data && cur.data.uses_count) || 0) + 1;
+          await window.sb.from('vouchers').update({ uses_count: novo }).eq('code', _ckVoucherCode);
+        } catch(e){}
       }
-      // Se a function retornou mas não veio data.free, mostra erro detalhado
-      alert('Resposta inesperada: ' + JSON.stringify(data));
+
+      // atualiza CU local
+      if (CU) {
+        CU.plan = plano;
+        CU.supabase_plan_name = plano;
+        CU.supabase_plan = 'active';
+        CU.plan_status = 'active';
+        CU.plan_expires_at = expira;
+        saveCU();
+      }
+      window._paywallBypass = true;
+      pg('pgHome');
+      window._paywallBypass = false;
+      setTimeout(function(){ alert('✅ Acesso liberado! Bem-vindo ao Neter Soul.'); }, 300);
+      return;
     } catch(e) {
       alert('Erro ao ativar acesso: ' + (e.message || 'Tente novamente.'));
+      btn.disabled = false;
+      btn.textContent = 'Pagar com Mercado Pago';
+      return;
     }
-    btn.disabled = false;
-    btn.textContent = 'Pagar com Mercado Pago';
-    return;
   }
 
   btn.disabled = true;
