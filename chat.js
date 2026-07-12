@@ -592,7 +592,11 @@ async function callAnthropic({ system, messages, max_tokens, temperature, model 
     messages
   };
   if (system) body.system = system;
-  if (temperature !== undefined) body.temperature = temperature;
+  // NOTE (12/jul/2026): o parametro `temperature` foi descontinuado pela
+  // Anthropic para os modelos atuais (erro 400: "temperature is deprecated
+  // for this model") e por isso NUNCA e enviado no body, mesmo que algum
+  // chamador ainda passe o valor. Isso derrubava toda chamada com 400 antes
+  // de gerar qualquer resposta (Anna chat e Analise Sistemica inclusive).
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
