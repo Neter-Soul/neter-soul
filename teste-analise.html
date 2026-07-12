@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teste da Análise Sistêmica</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:640px;margin:0 auto;padding:20px;background:#faf7f0;color:#1e3528}
+  h1{font-size:1.3rem}
+  .card{background:#fff;border:1px solid #d8cfc0;border-radius:12px;padding:16px;margin-bottom:14px}
+  button{background:#1e3528;color:#f4f0e8;border:none;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-bottom:8px}
+  button.alt{background:#c4a55a;color:#1e3528}
+  button:disabled{opacity:.5}
+  label{font-size:12px;font-weight:700;color:#5a6a52;display:block;margin:10px 0 4px}
+  input{width:100%;padding:10px;border:1px solid #d8cfc0;border-radius:8px;box-sizing:border-box;font-size:13px}
+  pre{background:#0d1f17;color:#b8e0c8;padding:12px;border-radius:8px;font-size:11px;overflow:auto;white-space:pre-wrap;word-break:break-word;max-height:340px}
+  .status{font-weight:700;font-size:14px;margin:8px 0}
+  .ok{color:#3d6035}.err{color:#9a4646}
+  small{color:#8a9a82;font-size:11px}
+</style>
+</head>
+<body>
+<h1>🧪 Teste da Análise Sistêmica</h1>
+<p><small>Dispara casos prontos direto na function de produção. Não precisa reescrever nada nem entrar no site.</small></p>
+
+<div class="card">
+  <label>URL da function (deixe assim se o site é netersoul.com.br)</label>
+  <input id="url" value="https://netersoul.com.br/.netlify/functions/chat">
+  <label>Token JWT (opcional — só se quiser testar como usuário logado)</label>
+  <input id="jwt" placeholder="cole aqui o access_token, ou deixe vazio">
+  <small>Sem token, testamos forçando _plan=premium, que é o que interessa para a análise.</small>
+</div>
+
+<div class="card">
+  <button onclick="testar('real')">✅ Testar com respostas REAIS (deve gerar análise)</button>
+  <button class="alt" onclick="testar('curtas')">✅ Testar com respostas CURTAS mas sinceras (deve gerar)</button>
+  <button onclick="testar('teclado')">🚫 Testar com TECLADO aleatório (deve recusar)</button>
+  <button onclick="testar('vazio')">🚫 Testar com quase VAZIO (deve recusar)</button>
+</div>
+
+<div class="card">
+  <div class="status" id="status">Aguardando teste…</div>
+  <pre id="out">—</pre>
+</div>
+
+<script>
+const CASOS = {
+  real: [
+    "Diriam que sou forte, que aguento tudo, mas por dentro me sinto cansada de sempre ter que ser assim",
+    "Minha mãe carregava tristeza calada, meu pai era ausente. Cresci achando que precisava dar conta de tudo sozinha",
+    "Sempre acabo em relacionamentos onde eu cuido e o outro recebe, e no fim me sinto vazia",
+    "Quando fico com medo, meu peito aperta e eu prendo a respiração, fico paralisada",
+    "Tenho vergonha da minha necessidade de aprovação, escondo de todo mundo",
+    "Queria poder descansar sem sentir culpa, queria ser cuidada também",
+    "Ainda não perdoei meu pai por ter ido embora quando eu mais precisava",
+    "Minha maior força é a empatia, sinto o que os outros sentem",
+    "Com minha mãe é um vínculo de dever, sinto que preciso protegê-la",
+    "Preciso deixar morrer a ideia de que só valho se for útil"
+  ],
+  curtas: [
+    "Que sou prestativa","Minha mãe era distante","Cuido demais dos outros","Meu peito aperta",
+    "Medo de rejeição","Queria paz","Não perdoei meu pai","Sou empática","Vínculo de dever","Recomeçar"
+  ],
+  teclado: [
+    "asdfghjkl","qwertyuiop","zxcvbnmm","kkkkkkk","hjhjhjhj","fffffff","Ryyyuujujkkyt","mnbvcxz","aaaaaa","poiuyt"
+  ],
+  vazio: ["oi","","","","","","","","",""]
+};
+
+async function testar(tipo){
+  const url = document.getElementById('url').value.trim();
+  const jwt = document.getElementById('jwt').value.trim();
+  const respostas = CASOS[tipo].map((a,i)=>'Resposta '+(i+1)+': '+a);
+  const st = document.getElementById('status');
+  const out = document.getElementById('out');
+  st.textContent = 'Enviando ('+tipo+')…'; st.className='status';
+  out.textContent = '—';
+  const headers = {'Content-Type':'application/json'};
+  if(jwt) headers['Authorization']='Bearer '+jwt;
+  try{
+    const r = await fetch(url, {
+      method:'POST', headers,
+      body: JSON.stringify({ type:'systemic_analysis', answers: respostas, _plan:'premium' })
+    });
+    const txt = await r.text();
+    let data; try{ data=JSON.parse(txt); }catch(e){ data=txt; }
+    const insuf = data && data.result && data.result.insufficient_data;
+    const temAnalise = data && data.result && data.result.hellinger;
+    st.className = 'status ' + (r.ok ? 'ok':'err');
+    st.textContent = 'HTTP '+r.status+
+      (insuf ? ' → RECUSOU (dados insuficientes)' :
+       temAnalise ? ' → GEROU ANÁLISE ✓' :
+       (data && data.error) ? ' → ERRO: '+data.error : ' → resposta inesperada');
+    out.textContent = (typeof data==='string'? data : JSON.stringify(data,null,2)).slice(0,4000);
+  }catch(e){
+    st.className='status err';
+    st.textContent = 'Falha de rede: '+e.message;
+    out.textContent = e.stack||e.message;
+  }
+}
+</script>
+</body>
+</html>
