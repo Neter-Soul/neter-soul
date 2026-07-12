@@ -4775,32 +4775,20 @@ async function anShowReport(){
     }
   }catch(e){console.warn('API:',e.message);}
 
-  // FALLBACK ROBUSTO
+  // SEM FALLBACK FIXO (Item 3): se o servidor não retornou uma análise REAL,
+  // é PROIBIDO inventar. O antigo "fallback robusto" injetava sempre o mesmo
+  // relatório fixo (Abandono/Herói Ferido) — era a invenção institucionalizada
+  // que fazia TODO usuário receber o mesmo texto. Removido. Agora: tela honesta.
   if(!report||!report.hellinger){
-    report={
-      retrato:{paisagem_interna:'A paisagem interna sugere um campo ps\u00edquico marcado por lealdades profundas e n\u00e3o reconhecidas. H\u00e1 uma tens\u00e3o estrutural entre o que foi herdado e o que aspira ser pr\u00f3prio. O padr\u00e3o de cuidado excessivo para com os outros indica uma invers\u00e3o hier\u00e1rquica que, embora nasa do amor, exige revis\u00e3o para que a pr\u00f3pria vida possa fluir.'},
-      mapa:{pilares:'Empatia genu\u00edna e intelig\u00eancia emocional for\u00e7ada na adversidade. Capacidade de sustentar v\u00ednculos mesmo sob press\u00e3o.',sombras:'Eros\u00e3o nas \u00e1reas de autovaloriza\u00e7\u00e3o e merecimento. Bloqueios que impedem a plena recep\u00e7\u00e3o do que \u00e9 bom.'},
-      dinamicas:{padrao_central:'O padr\u00e3o dominante sugere uma lealdade invis\u00edvel a um ancestral que carregou dor em sil\u00eancio. Essa lealdade se manifesta como limita\u00e7\u00e3o no pr\u00f3prio florescimento.',lealdade_invisivel:'Poss\u00edvel identifica\u00e7\u00e3o com algu\u00e9m da linhagem exclu\u00eddo ou cujo lugar foi negado. O sistema carrega essa exclu\u00eds\u00e3o como compuls\u00e3o de repeti\u00e7\u00e3o.',dinamica_secundaria:'Autossabotagem quando a vida come\u00e7a a melhorar al\u00e9m do que o sistema familiar viveu.'},
-      hellinger:{padrao_sistemico:'Padr\u00e3o de repeti\u00e7\u00e3o emocional ligado \u00e0 linhagem familiar sugere lealdades invis\u00edveis ainda ativas. H\u00e1 sinais de uma hierarquia invertida onde se assume o papel emocional dos pais. O sistema parece carregar uma exclu\u00eds\u00e3o n\u00e3o reconhecida.',hipotese:'Poss\u00edvel identifica\u00e7\u00e3o com um ancestral que carregou uma dor n\u00e3o reconhecida pelo sistema. A lealdade invis\u00edvel se manifesta como bloqueio no pr\u00f3prio desenvolvimento.'},
-      feridas:{primaria:'Abandono',primaria_descricao:'Dificuldade de confiar na perman\u00eancia das pessoas e na estabilidade do afeto. Tend\u00eancia a antecipar o abandono antes que ele ocorra. As rela\u00e7\u00f5es s\u00e3o marcadas por hipervigil\u00e2ncia emocional e necessidade de provar valor continuamente.',mascara:'O Dependente',crenca_nuclear:'"N\u00e3o sou suficiente para que as pessoas fiquem"'},
-      jung:{arquetipo_dominante:'Her\u00f3i Ferido',sombra:'A vulnerabilidade negada e a parte exilada para garantir a sobreviv\u00eancia afetiva. O que foi preciso esconder para ser aceito. A raiva leg\u00edtima que se transformou em culpa e autocobran\u00e7a.',individuacao:'O caminho indica integrar a parte que aprendeu que precisar \u00e9 perigoso. Reconhecer a pr\u00f3pria necessidade sem vergonha e sem precisar justific\u00e1-la.'},
-      eneagrama:{tipo_provavel:'6',tipo_nome:'O Leal',medo_nuclear:'Medo de ficar sem apoio ao mostrar quem realmente \u00e9. Estrat\u00e9gia de prote\u00e7\u00e3o baseada em antecipa\u00e7\u00e3o de amea\u00e7as e busca constante por seguran\u00e7a externa.'},
-      recomendacoes:{
-        mov1:{titulo:'Honrar a Linhagem',texto:'Reserve um momento para reconhecer aqueles que vieram antes com amor. "Eu recebo o que voc\u00ea viveu com amor, e deixo em voc\u00ea o que \u00e9 seu." Esse movimento libera a compuls\u00e3o de repetir padr\u00f5es herdados.'},
-        mov2:{titulo:'O Corpo como B\u00fassola',texto:'Quando uma decis\u00e3o parecer pesada, pause e observe onde esse peso est\u00e1 no corpo. O som\u00e1tico revela lealdades que a mente ainda n\u00e3o nomeou. Confie na sabedoria corporal.'},
-        mov3:{titulo:'Revis\u00e3o do Merecimento',texto:'Permita-se receber algo bom hoje sem imediatamente retribuir. A perman\u00eancia do bom n\u00e3o precisa ser devolvida para ser real. Pratique a recep\u00e7\u00e3o sem culpa.'}
-      },
-      sintese:{no_central:'Um fio de inseguran\u00e7a estrutural atravessa todos os padr\u00f5es, conectado a uma heran\u00e7a emocional que pede reconhecimento. H\u00e1 um profundo desejo de pertencer sem precisar se diminuir para isso. A cura come\u00e7a quando a lealdade pode ser honrada sem continuar sendo vivida.',recurso_oculto:'Profunda capacidade de empatia e intelig\u00eancia emocional for\u00e7ada na adversidade.',foco_terapeutico:'O pr\u00f3ximo passo mais significativo parece ser trabalhar a confian\u00e7a b\u00e1sica. Primeiro em si mesmo, depois no processo da vida.'},
-      impactos:{texto:'No dia a dia, esses padr\u00f5es podem aparecer como dificuldade de pedir ajuda e de delegar, uma tend\u00eancia a assumir mais do que cabe nas rela\u00e7\u00f5es e no trabalho. A autoestima oscila conforme a aprova\u00e7\u00e3o dos outros, e decis\u00f5es importantes costumam vir acompanhadas de muita autocobran\u00e7a. H\u00e1 sinais de que descansar ou receber cuidado pode gerar culpa, como se fosse preciso estar sempre \u00fatil para merecer afeto.'},
-      sintese_clinica:{
-        pontos_fortes:'H\u00e1 uma sensibilidade rara para perceber as necessidades dos outros e uma capacidade genu\u00edna de cuidar. A resili\u00eancia constru\u00edda na adversidade se tornou uma for\u00e7a real. Existe tamb\u00e9m uma honestidade interna que permite encarar a pr\u00f3pria hist\u00f3ria com coragem.',
-        pontos_frageis:'A maior vulnerabilidade parece estar na dificuldade de receber e de se colocar em primeiro lugar sem culpa. A m\u00e1scara do cuidador protege, mas tamb\u00e9m esconde a pr\u00f3pria necessidade de apoio. H\u00e1 um medo silencioso de que, ao parar de ser \u00fatil, deixe de ser amado.',
-        pontos_atencao:'Vale observar com carinho os sinais de esgotamento por assumir o peso emocional de muita gente. \u00c9 importante cuidar para que a autocobran\u00e7a n\u00e3o se transforme em adoecimento. Buscar apoio profissional cont\u00ednuo seria um gesto de cuidado, n\u00e3o de fraqueza.',
-        padroes_sistemicos:'Parece haver uma repeti\u00e7\u00e3o de hist\u00f3rias da fam\u00edlia em que algu\u00e9m carregou dores em sil\u00eancio. H\u00e1 ind\u00edcios de uma lealdade invis\u00edvel que leva a ocupar o lugar de cuidador antes do tempo. Reconhecer essa heran\u00e7a com respeito pode aliviar o peso de carreg\u00e1-la sozinho.',
-        crencas_limitantes:'A ideia de que \u201cs\u00f3 mere\u00e7o amor se for \u00fatil\u201d parece organizar boa parte das escolhas. Junto dela, vive a cren\u00e7a de que pedir ajuda \u00e9 um inc\u00f4modo. Soltar essas amarras abre espa\u00e7o para uma vida mais leve e mais sua.'
-      },
-      perfil_dor:'Aprendeu cedo que para ser amado era preciso ser \u00fatil \u2014 e esqueceu, no caminho, como simplesmente ser.'
-    };
+    if(rep) rep.innerHTML=
+      '<div style="padding:24px 20px;text-align:center">'+
+      '<div style="font-size:2.2rem;margin-bottom:10px">\uD83C\uDF31</div>'+
+      '<div class="an-report-title" style="color:#a8883e">N\u00e3o foi poss\u00edvel gerar sua an\u00e1lise</div>'+
+      '<p style="color:#5a6a52;font-size:14px;margin:14px 0;line-height:1.7">A an\u00e1lise s\u00f3 \u00e9 gerada a partir de respostas reais e com conte\u00fado suficiente. Se as respostas n\u00e3o trouxeram material bastante \u2014 ou houve uma falha de conex\u00e3o \u2014 preferimos ser honestos a inventar uma leitura gen\u00e9rica.</p>'+
+      '<p style="color:#5a6a52;font-size:14px;margin:14px 0;line-height:1.7">Nenhuma an\u00e1lise foi salva. Volte e responda \u00e0s perguntas com calma e profundidade \u2014 sua verdade \u00e9 o que torna o mapa real.</p>'+
+      '<button class="btn-gold" onclick="anRestart()" style="margin-top:8px">Refazer a An\u00e1lise \u2192</button>'+
+      '</div>';
+    return; // não salva nada, não personaliza a Anna com dado inventado
   }
 
   if(CU){CU._lastReport=report;saveCU();}
