@@ -26,9 +26,9 @@
 <div class="card">
   <label>URL da function (deixe assim se o site é netersoul.com.br)</label>
   <input id="url" value="https://netersoul.com.br/.netlify/functions/chat">
-  <label>Token JWT (opcional — só se quiser testar como usuário logado)</label>
-  <input id="jwt" placeholder="cole aqui o access_token, ou deixe vazio">
-  <small>Sem token, testamos forçando _plan=premium, que é o que interessa para a análise.</small>
+  <label>Token JWT (OBRIGATÓRIO para a análise — cole o access_token de uma conta paga)</label>
+  <input id="jwt" placeholder="cole aqui o access_token de uma conta Jornada/Premium">
+  <small>O servidor resolve o plano pelo token e ignora qualquer _plan enviado pelo cliente (proteção do paywall). Sem token = tratado como free = bloqueio 402. Cole o access_token da sua conta (Premium permanente) para chegar à análise.</small>
 </div>
 
 <div class="card">
@@ -73,8 +73,14 @@ async function testar(tipo){
   const respostas = CASOS[tipo].map((a,i)=>'Resposta '+(i+1)+': '+a);
   const st = document.getElementById('status');
   const out = document.getElementById('out');
-  st.textContent = 'Enviando ('+tipo+')…'; st.className='status';
-  out.textContent = '—';
+  // Sem token, o servidor trata como free e barra com 402 antes de gerar nada.
+  // Avisa em vez de deixar o teste "falhar" por um motivo esperado.
+  if(!jwt){
+    st.className='status err';
+    st.textContent='⚠️ Cole um token JWT de conta paga primeiro — sem ele o servidor te trata como free e barra com 402 (paywall).';
+    out.textContent='O campo _plan enviado pelo cliente é ignorado de propósito: o servidor decide o plano pelo token. Pegue o access_token no console do site logado:\n\n(await window.supabase.auth.getSession()).data.session.access_token';
+    return;
+  }
   const headers = {'Content-Type':'application/json'};
   if(jwt) headers['Authorization']='Bearer '+jwt;
   try{
@@ -85,7 +91,8 @@ async function testar(tipo){
     const txt = await r.text();
     let data; try{ data=JSON.parse(txt); }catch(e){ data=txt; }
     const insuf = data && data.result && data.result.insufficient_data;
-    const temAnalise = data && data.result && data.result.hellinger;
+    const r0 = data && data.result;
+    const temAnalise = r0 && (r0.hellinger || r0.jung || r0.erickson || r0.feridas || r0.eneagrama || r0.sintese);
     st.className = 'status ' + (r.ok ? 'ok':'err');
     st.textContent = 'HTTP '+r.status+
       (insuf ? ' → RECUSOU (dados insuficientes)' :
