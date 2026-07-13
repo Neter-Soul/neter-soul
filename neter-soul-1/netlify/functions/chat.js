@@ -541,8 +541,12 @@ async function handleSystemicAnalysis(body) {
   const raw = await callAI({
     system: ANALYSIS_SYSTEM,
     messages: [{ role: 'user', content: prompt }],
-    max_tokens: 5500,
-    temperature: 0.6,
+    // max_tokens elevado (12/jul/2026): o JSON da analise tem 13 secoes, cada
+    // uma com "MINIMO 3-5 frases". Com 5500 tokens ele truncava no meio, o
+    // JSON.parse falhava e caia no erro generico "nao foi possivel" mesmo com
+    // conta premium e servidor sem crash (log verde). 8000 da folga para o
+    // documento completo caber.
+    max_tokens: 8000,
     model: MODEL_ANALYSIS
   });
 
@@ -556,8 +560,14 @@ async function handleSystemicAnalysis(body) {
     const jsonMatch = raw.match(/\{[\s\S]+\}/);
     if (jsonMatch) {
       try { result = JSON.parse(jsonMatch[0]); }
-      catch { return { error: 'Não foi possível processar a análise. Tente novamente.' }; }
+      catch {
+        // Log de diagnostico: se ainda falhar, o Netlify mostra o tamanho e o
+        // fim da resposta crua para confirmar se foi truncamento por tokens.
+        console.error('[SOUL chat] Analise: JSON invalido. len=' + raw.length + ' fim=<<' + raw.slice(-120) + '>>');
+        return { error: 'Não foi possível processar a análise. Tente novamente.' };
+      }
     } else {
+      console.error('[SOUL chat] Analise: sem JSON na resposta. len=' + raw.length + ' inicio=<<' + raw.slice(0, 120) + '>>');
       return { error: 'Não foi possível processar a análise. Tente novamente.' };
     }
   }
@@ -592,11 +602,7 @@ async function callAnthropic({ system, messages, max_tokens, temperature, model 
     messages
   };
   if (system) body.system = system;
-  // NOTE (12/jul/2026): o parametro `temperature` foi descontinuado pela
-  // Anthropic para os modelos atuais (erro 400: "temperature is deprecated
-  // for this model") e por isso NUNCA e enviado no body, mesmo que algum
-  // chamador ainda passe o valor. Isso derrubava toda chamada com 400 antes
-  // de gerar qualquer resposta (Anna chat e Analise Sistemica inclusive).
+  if (temperature !== undefined) body.temperature = temperature;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

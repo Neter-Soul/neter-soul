@@ -4770,10 +4770,21 @@ async function anShowReport(){
             '</div>';
           return;
         }
-        if(_d.result.hellinger) report=_d.result;
+        if(_d.result.hellinger){ report=_d.result; }
+        else {
+          // Diagnostico (12/jul/2026): a resposta veio com result mas SEM a
+          // lente hellinger. Nao e conteudo insuficiente (esse ja retornou
+          // acima) — provavelmente o JSON da IA veio truncado/incompleto.
+          // Loga as chaves que chegaram para confirmar no console.
+          console.warn('API analise: result sem hellinger. chaves=', Object.keys(_d.result||{}));
+        }
+      } else if(_d && _d.error){
+        console.warn('API analise: servidor retornou erro:', _d.error);
       }
+    } else {
+      console.warn('API analise: HTTP', _res.status);
     }
-  }catch(e){console.warn('API:',e.message);}
+  }catch(e){console.warn('API:',e.name==='AbortError'?'abortada (timeout do cliente)':e.message);}
 
   // SEM FALLBACK FIXO (Item 3): se o servidor não retornou uma análise REAL,
   // é PROIBIDO inventar. O antigo "fallback robusto" injetava sempre o mesmo
