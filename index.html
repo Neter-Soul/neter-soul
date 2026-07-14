@@ -4730,7 +4730,20 @@ async function anShowReport(){
     var _tid=_ac?setTimeout(function(){_ac.abort();},28000):null;
     // Fase 2: envia JWT para o servidor validar o plano (Análise é recurso pago)
     var _hdrs={'Content-Type':'application/json'};
-    try{ if(window.sb&&window.sb.auth){ var _s=await window.sb.auth.getSession(); var _tk=_s&&_s.data&&_s.data.session&&_s.data.session.access_token; if(_tk)_hdrs['Authorization']='Bearer '+_tk; } }catch(e){}
+    // getSession blindado com timeout de 5s (13/jul/2026): em sessões com auth
+    // em estado ruim (ex: apos link expirado), o getSession podia pendurar e
+    // travar a análise inteira por dezenas de segundos ("timeout do cliente").
+    // Se nao responder em 5s, segue sem token — o servidor devolve 402 rapido
+    // e claro, em vez de congelar mudo.
+    try{
+      if(window.sb&&window.sb.auth){
+        var _sessP = window.sb.auth.getSession();
+        var _timeoutP = new Promise(function(res){ setTimeout(function(){ res({__timeout:true}); }, 5000); });
+        var _s = await Promise.race([_sessP, _timeoutP]);
+        if(_s&&_s.__timeout){ console.warn('[SOUL] getSession demorou >5s — seguindo sem token (auth pode estar travado; refaca login).'); }
+        else { var _tk=_s&&_s.data&&_s.data.session&&_s.data.session.access_token; if(_tk)_hdrs['Authorization']='Bearer '+_tk; }
+      }
+    }catch(e){ console.warn('[SOUL] getSession falhou:', e&&e.message); }
     var _res=await fetch('/.netlify/functions/chat',{
       method:'POST',
       headers:_hdrs,
@@ -5844,6 +5857,19 @@ function applySiteConfig(){
 }
 
 window.onload=function(){
+  // ═══ Limpeza defensiva do hash de erro de auth (13/jul/2026) ═══
+  // Magic Links expirados deixam #error=access_denied&error_code=otp_expired
+  // na URL. Esse hash ficava preso e era reprocessado a cada reload, podendo
+  // deixar o auth em estado ruim (getSession pendurava -> "timeout do cliente"
+  // na análise). Se detectar um hash de erro de auth, limpa a URL de imediato
+  // e avisa no console — o usuário simplesmente refaz o login.
+  try {
+    var _h = window.location.hash || '';
+    if (_h.indexOf('error=') !== -1 || _h.indexOf('error_code=') !== -1) {
+      console.warn('[SOUL] Link de acesso expirado/invalido detectado na URL — limpando. Faca login novamente.');
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+    }
+  } catch(e){}
   var ids=['pgLogin','pgHome','pgAnalysis','pgEmotion','pgTherapy','pgAnna','pgAnnaChat','pgTherapists','pgLoja','pgProsa','pgCredits','pgComprar','pgPlanos','pgCheckout','pgConfirmacao'];
   for(var i=0;i<ids.length;i++){
     var el=document.getElementById(ids[i]);
